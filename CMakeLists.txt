@@ -167,6 +167,8 @@ catkin_install_python(PROGRAMS
 
 install(PROGRAMS
   scripts/test_move.py
+  scripts/home_positions.py
+  scripts/pose_goal.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
