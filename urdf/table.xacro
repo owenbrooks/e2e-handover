@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+  <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="table">
+    <xacro:macro name="table">
+      <link name="table_base">
+        <visual>
+          <geometry>
+            <box size="4.0 4.0 0.01"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <box size="4.0 4.0 0.01"/>
+          </geometry>
+        </collision>
+      </link>
+
+      <!-- Used for fixing robot to Gazebo 'base_link' -->
+      <!-- <link name="world"/> -->
+
+      <joint name="fixed" type="fixed">
+        <parent link="base_link"/>
+        <child link="table_base"/>
+        <origin xyz="0.0 0.0 -0.01" />
+      </joint>
+    </xacro:macro>
+</robot>
