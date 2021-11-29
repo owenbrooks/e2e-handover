@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+  <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="simple_gripper">
+  <xacro:macro name="simple_gripper">
+    <!-- <material name="black">
+      <color rgba="0 0 0.8 1"/>
+    </material> -->
+
+    <link name="pusher">
+      <visual>
+        <geometry>
+          <cylinder length="0.085" radius="0.0375"/>
+        </geometry>
+        <material name="black"/>
+        <origin rpy="0 1.57075 0" xyz="0.04625 0 0"/>
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.085" radius="0.0375"/>
+        </geometry>
+        <origin rpy="0 1.57075 0" xyz="0.04625 0 0"/>
+      </collision>
+      <inertial>
+        <mass value="0.5"/>
+        <inertia ixx="0.002" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.002"/>
+      </inertial>
+    </link>
+
+
+    <link name="gripper1">
+      <visual>
+        <geometry>
+          <box size="0.11 0.025 0.02"/>
+        </geometry>
+        <material name="black"/>
+        <origin rpy="0 0 0" xyz="0.055 0.025 0"/>
+      </visual>
+      <collision>
+        <geometry>
+          <box size="0.11 0.025 0.02"/>
+        </geometry>
+        <origin rpy="0 0 0" xyz="0.055 0.025 0"/>
+      </collision>
+      <inertial>
+        <mass value="0.5"/>
+        <inertia ixx="0.002" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.002"/>
+      </inertial>
+    </link>
+
+    <joint name="gripper1_to_pusher" type="fixed">
+      <parent link="pusher"/>
+      <child link="gripper1"/>
+      <origin xyz="0.09 0 0"/>
+    </joint>
+
+
+    <link name="gripper2">
+      <visual>
+        <geometry>
+          <box size="0.11 0.025 0.02"/>
+        </geometry>
+        <material name="black"/>
+        <origin rpy="0 0 0" xyz="0.055 -0.025 0"/>
+      </visual>
+      <collision>
+        <geometry>
+          <box size="0.11 0.025 0.02"/>
+        </geometry>
+        <origin rpy="0 0 0" xyz="0.055 -0.025 0"/>
+      </collision>
+      <inertial>
+        <mass value="0.5"/>
+        <inertia ixx="0.002" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.002"/>
+      </inertial>
+    </link>
+
+    <joint name="gripper2_to_pusher" type="fixed">
+      <parent link="pusher"/>
+      <child link="gripper2"/>
+      <origin xyz="0.09 0 0"/>
+    </joint>
+    </xacro:macro>
+</robot>
