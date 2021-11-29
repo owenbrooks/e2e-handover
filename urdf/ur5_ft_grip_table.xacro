@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<!-- UR5 robot with robotiq ft300 sensor, gripper and table -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="ur5_robot">
+
+    <!-- Robotiq force-torque sensor (tool0 is at the end of UR5)-->
+    <xacro:include filename="$(find robotiq_ft_sensor)/urdf/robotiq_ft300.urdf.xacro" />
+    <xacro:robotiq_ft300 parent="tool0" prefix="">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:robotiq_ft300>
+
+    <!-- Robotiq gripper -->
+    <xacro:include filename="$(find robotiq_2f_85_gripper_visualization)/urdf/robotiq_arg2f_85_model_macro.xacro" />
+    <xacro:robotiq_arg2f_85 prefix=""/>
+    <joint name="gripper_fix" type="fixed">
+        <parent link="robotiq_ft_frame_id" />
+        <child link="robotiq_arg2f_base_link" />
+    </joint>
+
+    <!-- Table representing the boundary of the workspace -->
+    <xacro:include filename="$(find robot_control)/urdf/table.xacro" />
+    <xacro:table />
+
+    <!-- UR5 robot (parameters should be defined in launch files)-->
+    <xacro:include filename="$(find ur_description)/urdf/inc/ur_macro.xacro" />
+    <xacro:arg name="joint_limit_params" default=""/>
+    <xacro:arg name="kinematics_params" default=""/>
+    <xacro:arg name="physical_params" default=""/>
+    <xacro:arg name="visual_params" default=""/>
+    <!-- legal values:
+            - hardware_interface/PositionJointInterface
+            - hardware_interface/VelocityJointInterface
+            - hardware_interface/EffortJointInterface
+    -->
+    <xacro:arg name="transmission_hw_interface" default="hardware_interface/PositionJointInterface"/>
+    <xacro:arg name="safety_limits" default="false"/>
+    <xacro:arg name="safety_pos_margin" default="0.15"/>
+    <xacro:arg name="safety_k_position" default="20"/>
+    <!-- arm itself -->
+    <xacro:ur_robot
+        prefix=""
+        joint_limits_parameters_file="$(arg joint_limit_params)"
+        kinematics_parameters_file="$(arg kinematics_params)"
+        physical_parameters_file="$(arg physical_params)"
+        visual_parameters_file="$(arg visual_params)"
+        transmission_hw_interface="$(arg transmission_hw_interface)"
+        safety_limits="$(arg safety_limits)"
+        safety_pos_margin="$(arg safety_pos_margin)"
+        safety_k_position="$(arg safety_k_position)"/>
+</robot>
