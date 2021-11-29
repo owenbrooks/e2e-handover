@@ -19,18 +19,6 @@ class GripState(Enum):
 GRAB_THRESHOLD = 15 # Newtons
 RELEASE_THRESHOLD = 20 # Newtons
 
-def compute_next_state(current_state, force):
-    next_state = current_state
-
-    if current_state == GripState.HOLDING:
-        if force > RELEASE_THRESHOLD:
-            next_state = GripState.RELEASING
-    elif current_state == GripState.WAITING:
-        if force > GRAB_THRESHOLD:
-            next_state = GripState.GRABBING
-
-    return next_state
-
 class ForceBaselineNode():
     def __init__(self):
         self.display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
@@ -49,8 +37,23 @@ class ForceBaselineNode():
 
         self.force_sub = rospy.Subscriber('robotiq_ft_wrench', WrenchStamped, self.force_callback)
 
+        self.current_state = GripState.WAITING
+
     def force_callback(self, wrench_msg):
         self.latest_force = norm3(wrench_msg.wrench.force)
+
+    def compute_next_state(force):
+        next_state = current_state
+
+        if current_state == GripState.HOLDING:
+            if force > RELEASE_THRESHOLD:
+                next_state = GripState.RELEASING
+        elif current_state == GripState.WAITING:
+            if force > GRAB_THRESHOLD:
+                next_state = GripState.GRABBING
+
+
+        return next_state
     
     def run(self):
         rospy.loginfo("Running force thresholding baseline node")
@@ -58,7 +61,10 @@ class ForceBaselineNode():
         rate = rospy.Rate(10)
 
         while not rospy.is_shutdown():
-            state = compute_next_state(state, self.latest_force)
+            next_state = compute_next_state(self.current_state, self.latest_force)
+            if next_state != self.current_state:
+                print("" + str(self.current_state) + " -> " + str(next_state))
+
             rate.sleep()
 
 def norm3(vector3):
@@ -66,21 +72,6 @@ def norm3(vector3):
 
 def gripper_cmd(action_request, goto, auto_release, auto_release_dir, pos_request, speed, force):
     pass
-
-def main():
-    state = GripState.HOLDING
-    force = 0.0
-    while force < 100.0:
-        state = compute_next_state(state, force)
-        print(state)
-        force += 2
-
-    state = GripState.WAITING
-    force = 100.0
-    while force > 0.0:
-        state = compute_next_state(state, force)
-        print(state)
-        force -= 2
 
 if __name__ == "__main__":
     try: 
