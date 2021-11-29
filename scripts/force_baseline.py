@@ -64,6 +64,9 @@ class ForceBaselineNode():
 def norm3(vector3):
     return sqrt(vector3.x**2 + vector3.y**2 + vector3.z**2)
 
+def gripper_cmd(action_request, goto, auto_release, auto_release_dir, pos_request, speed, force):
+    pass
+
 def main():
     state = GripState.HOLDING
     force = 0.0
