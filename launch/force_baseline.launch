@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+  <node name="force_baseline" pkg="robot_control" type="force_baseline.py" output="screen"/>
+  <node name="rq_sensor" pkg="robotiq_ft_sensor" type="rq_sensor" output="screen">
+    <param name="serial_id" value="ttyUSB1" />
+  </node>
+  <node name="Robotiq2FGripperRtuNode" pkg="robotiq_2f_gripper_control" type="Robotiq2FGripperRtuNode.py" args="/dev/ttyUSB0" output="screen"/>
+</launch>
