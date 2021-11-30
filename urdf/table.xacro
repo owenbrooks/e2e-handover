@@ -1,11 +1,15 @@
 <?xml version="1.0"?>
   <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="table">
+    <material name="blue"> 
+      <color rgba="0 0 0.8 1"/>
+    </material>
     <xacro:macro name="table">
       <link name="table_base">
         <visual>
           <geometry>
             <box size="4.0 4.0 0.01"/>
           </geometry>
+          <material name="blue"/>
         </visual>
         <collision>
           <geometry>
