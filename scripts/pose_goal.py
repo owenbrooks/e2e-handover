@@ -30,13 +30,8 @@ class PoseGoal(object):
 
         self.state_index = 0
 
-        home_pose_1 = geometry_msgs.msg.Pose()
-        home_pose_1.orientation.w = 1.0
-        home_pose_1.position.x = 0.4
-        home_pose_1.position.y = 0.1
-        home_pose_1.position.z = 0.4
-
-        home_pose_2 = [-0.806, -0.243, 0.362, 0.707, 0.019, 0.025, 0.707]
+        home_pose_1 = [0.075, 0.449, 0.777, 0.702, -0.261, 0.643, -0.161]
+        home_pose_2 =  [-0.383, 0.044, 0.702, -0.570, -0.421, -0.418, 0.569]
 
         self.states = [home_pose_1, home_pose_2]
 
@@ -59,20 +54,20 @@ class PoseGoal(object):
         print(self.state_index)
         self.move_group.set_pose_target(self.states[state_index])
         plan = self.move_group.plan()
-        self.move_group.execute(plan, wait=True)
+        display_trajectory = moveit_msgs.msg.DisplayTrajectory()
+        display_trajectory.trajectory_start = self.robot.get_current_state()
+        display_trajectory.trajectory.append(plan)
+        self.display_trajectory_publisher.publish(display_trajectory)
+
+        run_flag = raw_input("Valid Trajectory? [y to run]:")
+
+        if run_flag =="y":
+            self.move_group.execute(plan, wait=True)
 
         self.move_group.stop()
         # It is always good to clear your targets after planning with poses.
         # Note: there is no equivalent function for clear_joint_value_targets()
         self.move_group.clear_pose_targets()
-
-        next_index = 0 if self.state_index == 1 else 1
-        self.move_group.set_pose_target(self.states[next_index])
-        next_plan = self.move_group.plan()
-        display_trajectory = moveit_msgs.msg.DisplayTrajectory()
-        display_trajectory.trajectory_start = self.robot.get_current_state()
-        display_trajectory.trajectory.append(next_plan)
-        self.display_trajectory_publisher.publish(display_trajectory)
     
     def run(self):
         rospy.loginfo("Running pose goal node")

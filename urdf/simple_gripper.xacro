@@ -1,16 +1,16 @@
 <?xml version="1.0"?>
   <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="simple_gripper">
   <xacro:macro name="simple_gripper">
-    <!-- <material name="black">
-      <color rgba="0 0 0.8 1"/>
-    </material> -->
+    <material name="grey">
+      <color rgba="0.7 0.7 0.7 1"/>
+    </material>
 
     <link name="pusher">
       <visual>
         <geometry>
           <cylinder length="0.085" radius="0.0375"/>
         </geometry>
-        <material name="black"/>
+        <material name="grey"/>
         <origin rpy="0 1.57075 0" xyz="0.04625 0 0"/>
       </visual>
       <collision>
@@ -31,7 +31,7 @@
         <geometry>
           <box size="0.11 0.025 0.02"/>
         </geometry>
-        <material name="black"/>
+        <material name="grey"/>
         <origin rpy="0 0 0" xyz="0.055 0.025 0"/>
       </visual>
       <collision>
@@ -58,7 +58,7 @@
         <geometry>
           <box size="0.11 0.025 0.02"/>
         </geometry>
-        <material name="black"/>
+        <material name="grey"/>
         <origin rpy="0 0 0" xyz="0.055 -0.025 0"/>
       </visual>
       <collision>
