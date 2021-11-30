@@ -9,6 +9,15 @@ Optional:
 Viewing the robot urdf:
 `roslaunch robot_control view_ur5_ft_grip_table.launch`
 
+Gripper communication:
+`rosrun robotiq_2f_gripper_control Robotiq2FGripperRtuNode.py /dev/ttyUSB0`
+
+Force/torque sensor comms:
+`rosrun robotiq_ft_sensor rq_sensor`
+
+Camera:
+`roslaunch realsense2_camera rs_camera.launch`
+
 # Dependencies
 - [Universal Robots ROS Driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver) (Follow *Building* instructions)
 - [fmauch Robot Descriptions](https://github.com/fmauch/universal_robot) (Should be installed as per Universal Robots instructions)
