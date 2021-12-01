@@ -117,7 +117,17 @@ class BoxTracerNode():
             waypoints, 0.01, 0.0  # waypoints to follow  # eef_step
         )
 
-        self.move_group.execute(plan, wait=False)
+        display_trajectory = moveit_msgs.msg.DisplayTrajectory()
+        display_trajectory.trajectory_start = self.robot.get_current_state()
+        display_trajectory.trajectory.append(plan)
+        self.display_trajectory_publisher.publish(display_trajectory)
+
+        run_flag = raw_input("Valid Trajectory? [y to run]:")
+
+        if run_flag =="y":
+            self.move_group.execute(plan, wait=False)
+        else:
+            rospy.signal_shutdown("Robot could not move to start location, ending execution!")
         
 
     def backoff(self, state):
@@ -147,6 +157,7 @@ class BoxTracerNode():
             rospy.loginfo("Waiting for gripper to connect")
             rate.sleep()
 
+        rospy.loginfo("Initializing gripper")
         # initialise the gripper
         grip_cmd = activate_gripper_msg()
         self.gripper_pub.publish(grip_cmd)
@@ -155,6 +166,7 @@ class BoxTracerNode():
         grip_cmd = close_gripper_msg()
         self.gripper_pub.publish(grip_cmd)
 
+        rospy.loginfo("Moving to start location")
         # move to start state
         plan = self.move_group.plan(self.home_joint_angles)
 
@@ -176,17 +188,21 @@ class BoxTracerNode():
         self.initial_forces.x = self.force_reading.x
         self.initial_forces.y = self.force_reading.y
         self.initial_forces.z = self.force_reading.z
+        rospy.loginfo("Initial force values: Fx = %.4f, Fy = %.4f, Fz = %.4f", self.initial_forces.x, self.initial_forces.y, self.initial_forces.z)
         
         
         while not rospy.is_shutdown():
 
             #Begin a motion in relevant direction
+            rospy.loginfo("Current motion state: %s", self.current_state)
             self.move_to_position(self.current_state)
             rate.sleep()
 
             while motion_flag: ###TODO
                 force_mag = compute_force_magnitude(self.force_reading, self.initial_forces)
+                rospy.loginfo("Force magnitude: %.4f", force_mag)
                 if force_mag > TURN_THRESHOLD:
+                    rospy.loginfo("Force threshold exceeded, turning!")
                     self.move_group.stop()
                     self.move_group.clear_pose_targets()
                     self.backoff(self.current_state)
