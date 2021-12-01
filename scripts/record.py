@@ -8,7 +8,7 @@ from sensor_msgs.msg import Joy, Image
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 from math import sqrt
 from enum import Enum
-from gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg
+from gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
 from datetime import datetime
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
@@ -29,7 +29,7 @@ class GripState(Enum):
     WAITING=1
     GRABBING=2
     HOLDING=3
-    RELEASING=3
+    RELEASING=4
 
 class ObjDetection(Enum):
     IN_MOTION=0
@@ -208,19 +208,17 @@ class RecorderNode():
         rospy.loginfo("Running recorder node")
         rate = rospy.Rate(10)
 
-        # while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-        #     rospy.loginfo("Waiting for gripper to connect")
-        #     rate.sleep()
+        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+            rospy.loginfo("Waiting for gripper to connect")
+            rate.sleep()
 
         # initialise the gripper
-        grip_cmd = activate_gripper_msg()
+        grip_cmd = reset_gripper_msg()
         self.gripper_pub.publish(grip_cmd)
 
         # open the gripper to start
         grip_cmd = open_gripper_msg()
         self.gripper_pub.publish(grip_cmd)
-
-        self.start_recording()
 
         # keyboard input
         key_listener = keyboard.Listener(

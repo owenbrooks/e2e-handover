@@ -20,6 +20,12 @@ def close_gripper_msg():
 
     return command
 
+def reset_gripper_msg():
+    command = outputMsg.Robotiq2FGripper_robot_output()
+    command.rACT = 0
+
+    return command
+
 def activate_gripper_msg():
     command = outputMsg.Robotiq2FGripper_robot_output()
     command.rACT = 1
