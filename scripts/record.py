@@ -4,12 +4,16 @@ import os
 import csv
 import rospy
 from geometry_msgs.msg import WrenchStamped
+from sensor_msgs.msg import Joy, Image
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 from math import sqrt
 from enum import Enum
 from gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg
 from datetime import datetime
 from uuid import uuid4
+import message_filters
+from cv_bridge import CvBridge, CvBridgeError
+import cv2
 
 # Launch node, gripper opens
 # Give object to arm (triggered by force threshold)
@@ -46,6 +50,14 @@ class RecorderNode():
         self.force_sub = rospy.Subscriber('robotiq_ft_wrench', WrenchStamped, self.force_callback)
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
         self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
+
+        image_sub = message_filters.Subscriber('/camera/color/image_raw', Image)
+        joy_sub = message_filters.Subscriber('joy', Joy)
+
+        ts = message_filters.ApproximateTimeSynchronizer([image_sub, joy_sub], 10, 0.1) # TODO: how to choose slop?
+        ts.registerCallback(self.image_and_input_callback)
+
+        self.cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images
 
         self.current_state = GripState.WAITING
         self.obj_det_state = ObjDetection.GRIPPER_OFFLINE
@@ -99,14 +111,21 @@ class RecorderNode():
             rospy.loginfo("Finished recording. Session: " + self.session_id)
             rospy.loginfo("Recorded " + str(self.session_image_count) + " images")
 
-    def image_and_force_callback(self, image, force):
+    def image_and_input_callback(self, image_msg, joy_msg):
         gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
 
         current_dirname = os.path.dirname(__file__)
+        
         # Save image as png
         image_name = str(self.session_image_count) + '_' + self.session_id + '.png'
         self.session_image_count += 1
         image_path = os.path.join(current_dirname, '../data', self.session_id, image_name)
+        try:
+            cv2_img = self.cv_bridge.imgmsg_to_cv2(image_msg, "bgr8")
+        except CvBridgeError as e:
+            rospy.logerr(e)
+        else:
+            cv2.imwrite(image_path, cv2_img)
 
         # Append numerical data and annotation to the session csv
         csv_path = os.path.join(current_dirname, '../data', self.session_id, self.session_id + '.csv')
@@ -168,7 +187,6 @@ class RecorderNode():
                 self.current_state = next_state
 
             rospy.loginfo("Recording: %s, f_z: %.2f, obj: %s, state: %s", self.is_recording, self.abs_z_force, self.obj_det_state, self.current_state)
-            self.image_and_force_callback(1, 2)
 
             rate.sleep()
 
