@@ -11,6 +11,8 @@ from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as out
 from gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg
 from enum import Enum
 import math
+import copy
+from time import sleep
 
 import moveit_commander
 import moveit_msgs.msg
@@ -38,13 +40,14 @@ state_transition_table = {
     MoveDirection.EAST: MoveDirection.SOUTH, 
     MoveDirection.SOUTH: MoveDirection.WEST, 
     MoveDirection.WEST: MoveDirection.NORTH, 
-    }
+}
+
 
 state_move_direction = {
-    MoveDirection.NORTH: {'x':0, 'y':1}, 
-    MoveDirection.EAST: {'x':1, 'y':0}, 
-    MoveDirection.SOUTH: {'x':0, 'y':-1}, 
-    MoveDirection.WEST: {'x':-1, 'y':0}, 
+    MoveDirection.NORTH: {'coord':'y', 'direction':1, 'position': 0.4}, 
+    MoveDirection.EAST: {'coord':'x', 'direction':1, 'position': -0.2}, 
+    MoveDirection.SOUTH: {'coord':'y', 'direction':-1, 'position': -0.27}, 
+    MoveDirection.WEST: {'coord':'x', 'direction':-1, 'position': -0.7}, 
 }
 
 TURN_THRESHOLD = 5
@@ -95,26 +98,31 @@ class BoxTracerNode():
 
         return safe
 
-    def move_in_direction(self, state):
-        move_distance = 0.01
+    def move_to_position(self, state):
+        plan_spacing = 0.1
         new_pose = self.move_group.get_current_pose().pose
-        motion_direction = state_move_direction[state]
+        waypoints = []
 
-        new_pose.position.x += motion_direction.x * move_distance
-        new_pose.position.y += motion_direction.y * move_distance
+        coord = state_move_direction[state]['coord']
 
-        if self.new_position_safe(new_pose):
-            self.move_group.set_pose_target(new_pose)
-            #wait means wait for movement to to finish before executing any more code
-            plan_sucessful = self.move_group.go(wait=True)
-            self.move_group.stop()
-            self.move_group.clear_pose_targets()
-        else:
-            rospy.signal_shutdown("Robot is out of bounds, ending execution!")
+        current_pos = getattr(new_pose.position, coord)
+        goal_pos = state_move_direction[state]['position']
+        num_steps = math.round(abs(current_pos - goal_pos) / plan_spacing)
+
+        for i in range(num_steps):
+            setattr(new_pose.position, coord, getattr(new_pose.position, coord) + plan_spacing)
+            waypoints.append(copy.deepcopy(new_pose))
+
+        (plan, fraction) = self.move_group.compute_cartesian_path(
+            waypoints, 0.01, 0.0  # waypoints to follow  # eef_step
+        )
+
+        self.move_group.execute(plan, wait=False)
+        
 
     def backoff(self, state):
         # Move back 5 cm
-        backoff_distance = 0.05
+        backoff_distance = 0.1
         new_pose = self.move_group.get_current_pose().pose
         motion_direction = state_move_direction[state]
 
@@ -122,27 +130,13 @@ class BoxTracerNode():
         new_pose.position.x -= motion_direction.x * backoff_distance
         new_pose.position.y -= motion_direction.y * backoff_distance
 
-        if self.new_position_safe(new_pose):
-            self.move_group.set_pose_target(new_pose)
-            #wait means wait for movement to to finish before executing any more code
-            plan_sucessful = self.move_group.go(wait=True)
-            self.move_group.stop()
-            self.move_group.clear_pose_targets()
-        else:
-            rospy.signal_shutdown("Robot is out of bounds, ending execution!")
 
-        
+        self.move_group.set_pose_target(new_pose)
+        #wait means wait for movement to to finish before executing any more code
+        plan_sucessful = self.move_group.go(wait=True)
+        self.move_group.stop()
+        self.move_group.clear_pose_targets()
 
-    def compute_next_state(self, force_mag):
-        next_state = self.current_state
-
-        if force_mag > TURN_THRESHOLD:
-            self.backoff(self.current_state)
-            next_state = state_transition_table[self.current_state]
-
-        self.move_in_direction(next_state)
-        
-        return next_state
 
     
     def run(self):
@@ -185,15 +179,21 @@ class BoxTracerNode():
         
         
         while not rospy.is_shutdown():
-            force_mag = compute_force_magnitude(self.force_reading, self.initial_forces)
-            next_state = self.compute_next_state(force_mag)
-            if next_state != self.current_state:
-                print("" + str(self.current_state) + " -> " + str(next_state))
-                self.current_state = next_state
 
-            rospy.loginfo("Force: %f, object_status: %s, state: %s", force_mag, self.obj_det_state, self.current_state)
-
+            #Begin a motion in relevant direction
+            self.move_to_position(self.current_state)
             rate.sleep()
+
+            while motion_flag: ###TODO
+                force_mag = compute_force_magnitude(self.force_reading, self.initial_forces)
+                if force_mag > TURN_THRESHOLD:
+                    self.move_group.stop()
+                    self.move_group.clear_pose_targets()
+                    self.backoff(self.current_state)
+                    self.current_state = state_transition_table[self.current_state]
+                    sleep(1)
+                rate.sleep()
+
 
 
 def compute_force_magnitude(force_reading, initial_force):
