@@ -11,10 +11,10 @@ from enum import Enum
 from gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg
 from datetime import datetime
 from uuid import uuid4
-import message_filters
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 
+# Node to record data for 
 # Launch node, gripper opens
 # Give object to arm (triggered by force threshold)
 # Can take object from arm if needed (triggered by force threshold)
@@ -38,7 +38,13 @@ class ObjDetection(Enum):
     FINISHED_MOTION=3
     GRIPPER_OFFLINE=4
 
-obj_msg_to_enum = {0: ObjDetection.IN_MOTION, 1: ObjDetection.OPENING_STOPPED, 2: ObjDetection.CLOSING_STOPPED, 3: ObjDetection.FINISHED_MOTION}
+# Used to map gripper state integer to our enum values
+obj_msg_to_enum = {
+    0: ObjDetection.IN_MOTION, 
+    1: ObjDetection.OPENING_STOPPED, 
+    2: ObjDetection.CLOSING_STOPPED, 
+    3: ObjDetection.FINISHED_MOTION
+}
 
 GRAB_THRESHOLD = 8 # Newtons
 RELEASE_THRESHOLD = 8 # Newtons
@@ -49,13 +55,9 @@ class RecorderNode():
 
         self.force_sub = rospy.Subscriber('robotiq_ft_wrench', WrenchStamped, self.force_callback)
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
+        self.image_sub = rospy.Subscriber('/camera/color/image_raw', Image, self.image_callback)
+        self.joy_sub = rospy.Subscriber('joy', Joy, self.joy_callback) # joystick control
         self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
-
-        image_sub = message_filters.Subscriber('/camera/color/image_raw', Image)
-        joy_sub = message_filters.Subscriber('joy', Joy)
-
-        ts = message_filters.ApproximateTimeSynchronizer([image_sub, joy_sub], 10, 0.1) # TODO: how to choose slop?
-        ts.registerCallback(self.image_and_input_callback)
 
         self.cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images
 
@@ -111,11 +113,33 @@ class RecorderNode():
             rospy.loginfo("Finished recording. Session: " + self.session_id)
             rospy.loginfo("Recorded " + str(self.session_image_count) + " images")
 
-    def image_and_input_callback(self, image_msg, joy_msg):
+    def toggle_gripper(self):
+        if self.current_state == GripState.WAITING:
+            self.current_state = GripState.GRABBING
+            grip_cmd = close_gripper_msg()
+            self.gripper_pub.publish(grip_cmd) # close gripper
+        elif self.current_state == GripState.HOLDING:
+            self.current_state = GripState.RELEASING
+            grip_cmd = open_gripper_msg()
+            self.gripper_pub.publish(grip_cmd) # open gripper
+
+    def joy_callback(self, joy_msg):
+        recording_toggled = True # TODO: base off of joy msg
+        if recording_toggled:
+            if not self.is_recording:
+                self.start_recording()
+            else:
+                self.stop_recording()
+
+        gripper_toggled = True # TODO: base off of joy msg
+        if gripper_toggled:
+            self.toggle_gripper()
+
+    def image_callback(self, image_msg):
         gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
 
         current_dirname = os.path.dirname(__file__)
-        
+
         # Save image as png
         image_name = str(self.session_image_count) + '_' + self.session_id + '.png'
         self.session_image_count += 1
