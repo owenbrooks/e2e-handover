@@ -10,7 +10,6 @@ from math import sqrt
 from enum import Enum
 from gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg
 from datetime import datetime
-from uuid import uuid4
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 from pynput import keyboard
@@ -71,6 +70,8 @@ class RecorderNode():
 
         self.session_image_count = 0
 
+        self.wrench_array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
         # Create folder for storing recorded images and the csv with numerical/annotation data
         current_dirname = os.path.dirname(__file__)
         data_dir = os.path.join(current_dirname, '../data')
@@ -80,6 +81,9 @@ class RecorderNode():
 
     def force_callback(self, wrench_msg):
         self.abs_z_force = abs(wrench_msg.wrench.force.z)
+
+        self.wrench_array = [wrench_msg.wrench.force.x, wrench_msg.wrench.force.y, wrench_msg.wrench.force.z, 
+            wrench_msg.wrench.torque.x, wrench_msg.wrench.torque.y, wrench_msg.wrench.torque.z]
     
     def gripper_state_callback(self, gripper_input_msg):
         self.obj_det_state = obj_msg_to_enum[gripper_input_msg.gOBJ]
@@ -91,7 +95,7 @@ class RecorderNode():
             self.is_recording = True
             self.session_image_count = 0
             # Create folder for storing recorded images and the session csv
-            self.session_id = datetime.now().strftime('%Y-%m-%d-%H:%M:%S-') + str(uuid4())
+            self.session_id = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
             current_dirname = os.path.dirname(__file__)
             session_dir = os.path.join(current_dirname, '../data', self.session_id)
             os.makedirs(session_dir)
@@ -101,7 +105,7 @@ class RecorderNode():
             with open(fname, 'w+') as csvfile:
                 datawriter = csv.writer(csvfile, delimiter=' ',
                                         quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                header = ['image_id', 'abs_z_force', 'gripper_is_open']
+                header = ['image_id', 'gripper_is_open', 'fx', 'fy', 'fz', 'mx', 'my', 'mz']
                 datawriter.writerow(header)
 
             rospy.loginfo("Started recording. Session: " + self.session_id)
@@ -149,26 +153,27 @@ class RecorderNode():
                 self.toggle_gripper()
 
     def image_callback(self, image_msg):
-        gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
+        if self.is_recording:
+            gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
 
-        current_dirname = os.path.dirname(__file__)
+            current_dirname = os.path.dirname(__file__)
 
-        # Save image as png
-        image_name = str(self.session_image_count) + '_' + self.session_id + '.png'
-        self.session_image_count += 1
-        image_path = os.path.join(current_dirname, '../data', self.session_id, image_name)
-        try:
-            cv2_img = self.cv_bridge.imgmsg_to_cv2(image_msg, "bgr8")
-        except CvBridgeError as e:
-            rospy.logerr(e)
-        else:
-            cv2.imwrite(image_path, cv2_img)
+            # Save image as png
+            image_name = str(self.session_image_count) + '_' + self.session_id + '.png'
+            self.session_image_count += 1
+            image_path = os.path.join(current_dirname, '../data', self.session_id, image_name)
+            try:
+                cv2_img = self.cv_bridge.imgmsg_to_cv2(image_msg, "bgr8")
+            except CvBridgeError as e:
+                rospy.logerr(e)
+            else:
+                cv2.imwrite(image_path, cv2_img)
 
-        # Append numerical data and annotation to the session csv
-        csv_path = os.path.join(current_dirname, '../data', self.session_id, self.session_id + '.csv')
-        with open(csv_path, 'a+') as csvfile:
-            datawriter = csv.writer(csvfile, delimiter=' ')
-            datawriter.writerow([image_name, self.abs_z_force, gripper_is_open])
+            # Append numerical data and annotation to the session csv
+            csv_path = os.path.join(current_dirname, '../data', self.session_id, self.session_id + '.csv')
+            with open(csv_path, 'a+') as csvfile:
+                datawriter = csv.writer(csvfile, delimiter=' ')
+                datawriter.writerow([image_name, gripper_is_open] + self.wrench_array)
 
     def compute_next_state(self, force):
         next_state = self.current_state
