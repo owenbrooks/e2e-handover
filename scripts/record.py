@@ -13,6 +13,7 @@ from datetime import datetime
 from uuid import uuid4
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
+from pynput import keyboard
 
 # Node to record data for 
 # Launch node, gripper opens
@@ -113,6 +114,12 @@ class RecorderNode():
             rospy.loginfo("Finished recording. Session: " + self.session_id)
             rospy.loginfo("Recorded " + str(self.session_image_count) + " images")
 
+    def toggle_recording(self):
+        if self.is_recording:
+            self.stop_recording()
+        else:
+            self.start_recording()
+
     def toggle_gripper(self):
         if self.current_state == GripState.WAITING:
             self.current_state = GripState.GRABBING
@@ -126,14 +133,20 @@ class RecorderNode():
     def joy_callback(self, joy_msg):
         recording_toggled = True # TODO: base off of joy msg
         if recording_toggled:
-            if not self.is_recording:
-                self.start_recording()
-            else:
-                self.stop_recording()
+            self.toggle_recording()
 
         gripper_toggled = True # TODO: base off of joy msg
         if gripper_toggled:
             self.toggle_gripper()
+
+    def on_key_press(self, key):
+        try:
+            char = key.char
+            if char == 'r': # r key to start/stop recording
+                self.toggle_recording()
+        except AttributeError: # special keys (ctrl, alt, etc.) will cause this exception
+            if key == keyboard.Key.shift: # space bar to open/close gripper
+                self.toggle_gripper()
 
     def image_callback(self, image_msg):
         gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
@@ -203,6 +216,11 @@ class RecorderNode():
         self.gripper_pub.publish(grip_cmd)
 
         self.start_recording()
+
+        # keyboard input
+        key_listener = keyboard.Listener(
+            on_press=self.on_key_press)
+        key_listener.start()
         
         while not rospy.is_shutdown():
             next_state = self.compute_next_state(self.abs_z_force)
