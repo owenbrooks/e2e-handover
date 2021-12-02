@@ -38,6 +38,7 @@ Force/torque sensor comms:
 
 Camera:
 `roslaunch realsense2_camera rs_camera.launch`
+or `roslaunch camera_driver realsense_driver.launch`
 
 Testing recorder:
 `rosrun robot_control record.py /camera/color/image_raw:=/image_publisher_1638368985896366349/image_raw`
