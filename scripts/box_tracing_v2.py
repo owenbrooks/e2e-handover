@@ -27,6 +27,10 @@ from moveit_msgs.msg import MoveGroupActionFeedback
 # minus x of 0.275
 # [-0.593, -0.148, 0.384, 0.764, 0.644, -0.034, -0.016] -> front left
 
+# Cardboard box home joint angles: [-1.4105542341815394, -1.834656063710348, 0.42505350708961487, -1.3924554030047815, 1.5589529275894165, 0.5954916477203369]
+
+# Plastic box home joint angles: [-1.0356820265399378, -1.9370468298541468, 0.43775904178619385, -1.7621453444110315, 1.6236332654953003, 0.011440815404057503]
+
 
 
 class MoveDirection(Enum):
@@ -77,7 +81,7 @@ class BoxTracerNode():
         self.status_sub = rospy.Subscriber('/move_group/feedback', MoveGroupActionFeedback, self.status_callback)
 
         self.current_state = MoveDirection.STARTUP
-        self.home_joint_angles = [-1.4105542341815394, -1.834656063710348, 0.42505350708961487, -1.3924554030047815, 1.5589529275894165, 0.5954916477203369]
+        self.home_joint_angles = [-1.0356820265399378, -1.9370468298541468, 0.43775904178619385, -1.7621453444110315, 1.6236332654953003, 0.011440815404057503]
 
         self.initial_forces = {'x': 0, 'y': 0, 'z' : 0}
         self.force_reading = 0
