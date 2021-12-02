@@ -231,7 +231,7 @@ class RecorderNode():
                 print("" + str(self.current_state) + " -> " + str(next_state))
                 self.current_state = next_state
 
-            rospy.loginfo("Recording: %s, f_z: %.2f, obj: %s, state: %s", self.is_recording, self.abs_z_force, self.obj_det_state, self.current_state)
+            rospy.loginfo("Recording: %s, f_z: %.2f, %s, %s", self.is_recording, self.abs_z_force, self.obj_det_state, self.current_state)
 
             rate.sleep()
 
