@@ -7,6 +7,7 @@ import sys
 import rospy
 import geometry_msgs.msg
 from geometry_msgs.msg import WrenchStamped
+
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 from gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg
 from enum import Enum
@@ -16,6 +17,7 @@ from time import sleep
 
 import moveit_commander
 import moveit_msgs.msg
+from moveit_msgs.msg import MoveGroupActionFeedback
 
 # positions:
 # Comments are relative to table
@@ -72,12 +74,17 @@ class BoxTracerNode():
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
         self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
 
+        self.status_sub = rospy.Subscriber('/move_group/feedback', MoveGroupActionFeedback, self.status_callback)
+
         self.current_state = MoveDirection.STARTUP
         self.home_joint_angles = [-1.4105542341815394, -1.834656063710348, 0.42505350708961487, -1.3924554030047815, 1.5589529275894165, 0.5954916477203369]
 
         self.initial_forces = {'x': 0, 'y': 0, 'z' : 0}
         self.force_reading = 0
+        self.in_motion = 0
 
+    def status_callback(self, status_msg):
+        self.in_motion = status_msg.status.status
 
     def force_callback(self, wrench_msg):
         self.force_reading = wrench_msg.wrench.force
@@ -198,7 +205,7 @@ class BoxTracerNode():
             self.move_to_position(self.current_state)
             rate.sleep()
 
-            while motion_flag: ###TODO
+            while self.in_motion:
                 force_mag = compute_force_magnitude(self.force_reading, self.initial_forces)
                 rospy.loginfo("Force magnitude: %.4f", force_mag)
                 if force_mag > TURN_THRESHOLD:
