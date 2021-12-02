@@ -112,6 +112,8 @@ class ResNet(nn.Module):
 
         x = x.view(x.size(0), -1)
 
+        # print(x.shape)
+        # print(forces.shape)
         x = torch.cat((x,forces),dim=1)
 
         x = self.fc1(x)
@@ -141,39 +143,32 @@ class ResNet(nn.Module):
 
 
 if __name__ == "__main__":
-    print("Hello There!")
-
     net = ResNet()
-    print(net)
+    # print(net)
     state_dict = torch.load('resnet18-5c106cde.pth')
-    # print(state_dict.keys())
-    # print(type(state_dict))
-    # raw_input()
     net.load_partial_state_dict(state_dict)
-    #net.load_state_dict(state_dict)
 
+    # net.eval()
+    # net.cuda()
 
-    net.eval()
-    net.cuda()
+    # normalize = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
 
-    normalize = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
+    # n = 1
+    # t1 = time.time()
+    # for i in range(n):
+    #     img = torch.autograd.Variable(torch.rand(1,3,224,224)).float().cuda()
+    #     out = net(img)
+    #     out = out.data.cpu().numpy()
+    #     label = np.argmax(out)
+    #     print("Frame %i: %i" % (i,label))
+    # t2 = time.time()
 
-    n = 1
-    t1 = time.time()
-    for i in range(n):
-        img = torch.autograd.Variable(torch.rand(1,3,224,224)).float().cuda()
-        out = net(img)
-        out = out.data.cpu().numpy()
-        label = np.argmax(out)
-        print("Frame %i: %i" % (i,label))
-    t2 = time.time()
+    # fps = n / (t2-t1)
+    # print("fps",fps)
 
-    fps = n / (t2-t1)
-    print("fps",fps)
-
-    weight_sum = 0
-    for name,parameter in net.named_parameters():
-        weights = np.prod(parameter.shape)
-        weight_sum += weights
-        print(name,weights)
-    print("total weights",weight_sum)
+    # weight_sum = 0
+    # for name,parameter in net.named_parameters():
+    #     weights = np.prod(parameter.shape)
+    #     weight_sum += weights
+    #     print(name,weights)
+    # print("total weights",weight_sum)

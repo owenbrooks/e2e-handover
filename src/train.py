@@ -1,13 +1,13 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 from dataset import DeepHandoverDataset
 import torch
 import torch.nn as nn
 import model
 import torch.optim as optim
-import dataset_slice
 import random
 import matplotlib.pyplot as plt
 import numpy as np
+from torch.utils.data import random_split 
 
 class ControlLoss():
 
@@ -51,13 +51,14 @@ class ControlLoss():
 
 def main():
     dataset = DeepHandoverDataset("2021-12-01-15:30:36")
-    random.shuffle(dataset.img_annotation_path_pairs)
+    # random.shuffle(dataset.img_annotation_path_pairs)
 
     # Split between test and train
     train_fraction = 0.8
-    split_index = int(len(dataset)*train_fraction)
-    train_data = dataset_slice.DataSlice(dataset, 0, split_index)
-    test_data = dataset_slice.DataSlice(dataset, split_index, len(dataset))
+    train_length = int(len(dataset)*train_fraction)
+    test_length = len(dataset) - train_length
+    torch.manual_seed(42)
+    train_data, test_data = random_split(dataset, [train_length, test_length])
 
     print(len(dataset),len(train_data),len(test_data))
 
@@ -68,14 +69,14 @@ def main():
     state_dict = torch.load('resnet18-5c106cde.pth')
     net.load_partial_state_dict(state_dict)
 
-    train(net,train_loader,test_loader)
+    train(net, train_loader, test_loader)
 
 def train(net,train_loader,test_loader):
     train_loss_list = []
     test_loss_list = []
     test_acc_list = []
 
-    net.cuda()
+    # net.cuda()
     net.train()
 
     #criterion = ControlLoss()
@@ -83,21 +84,19 @@ def train(net,train_loader,test_loader):
     #criterion = nn.MSELoss()
     optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     for epoch in range(100):  # loop over the dataset multiple times
-
         running_loss = 0.0
-        for i, data in enumerate(train_loader, 0):
-
+        for i, data in enumerate(train_loader):
             # get the inputs
-            img = torch.autograd.Variable(data["image"]).cuda()
-            forces = torch.autograd.Variable(data["force"]).cuda()
-            labels = torch.autograd.Variable(data["annotation"]).cuda()
+            img = torch.autograd.Variable(data[0])
+            forces = torch.autograd.Variable(data[1])
+            gripper_is_open = torch.autograd.Variable(data[2])
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward + backward + optimize
             outputs = net(img,forces)
-            loss = criterion(outputs, labels)
+            loss = criterion(outputs, gripper_is_open)
 
             # print("output",outputs)
             # print("loss",loss)
@@ -121,15 +120,15 @@ def train(net,train_loader,test_loader):
         test_acc_list.append(test_accuracy)
 
         plt.cla()
-        plt.plot(train_loss_list)
-        plt.plot(test_loss_list)
-        plt.plot(test_acc_list)
+        plt.plot(train_loss_list, label="train loss")
+        plt.plot(test_loss_list, label="test loss")
+        plt.plot(test_acc_list, label="test accuracy")
         plt.draw()
         plt.pause(0.1)
 
         print("Train/Test %0.5f / %0.5f" % (train_loss,test_loss))
 
-        torch.save(net,"models/handover_2.pt")
+        torch.save(net,"../models/handover_2.pt")
     print('Finished Training')
     plt.show()
 
@@ -138,11 +137,10 @@ def test(net,test_loader,criterion):
     running_correct = 0
     running_total = 0
     for i, data in enumerate(test_loader, 0):
-
         # get the inputs
-        img = torch.autograd.Variable(data["image"]).cuda()
-        forces = torch.autograd.Variable(data["force"]).cuda()
-        labels = torch.autograd.Variable(data["annotation"]).cuda()
+        img = torch.autograd.Variable(data[0])
+        forces = torch.autograd.Variable(data[1])
+        labels = torch.autograd.Variable(data[2])
 
         # forward + backward + optimize
         outputs = net(img,forces)
