@@ -18,6 +18,8 @@ from time import sleep
 import moveit_commander
 import moveit_msgs.msg
 from moveit_msgs.msg import MoveGroupActionFeedback
+from actionlib_msgs.msg import GoalStatusArray
+
 
 # positions:
 # Comments are relative to table
@@ -51,12 +53,12 @@ state_transition_table = {
 
 state_move_direction = {
     MoveDirection.NORTH: {'coord':'y', 'direction':1, 'position': 0.4}, 
-    MoveDirection.EAST: {'coord':'x', 'direction':1, 'position': -0.2}, 
+    MoveDirection.EAST: {'coord':'x', 'direction':1, 'position': -0.25}, 
     MoveDirection.SOUTH: {'coord':'y', 'direction':-1, 'position': -0.27}, 
-    MoveDirection.WEST: {'coord':'x', 'direction':-1, 'position': -0.7}, 
+    MoveDirection.WEST: {'coord':'x', 'direction':-1, 'position': -0.65}, 
 }
 
-TURN_THRESHOLD = 5
+TURN_THRESHOLD = 7
     
 
 class BoxTracerNode():
@@ -78,17 +80,19 @@ class BoxTracerNode():
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
         self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
 
-        self.status_sub = rospy.Subscriber('/move_group/feedback', MoveGroupActionFeedback, self.status_callback)
+        self.status_sub = rospy.Subscriber('/scaled_pos_joint_traj_controller/follow_joint_trajectory/status', GoalStatusArray, self.status_callback)
 
         self.current_state = MoveDirection.STARTUP
-        self.home_joint_angles = [-1.0356820265399378, -1.9370468298541468, 0.43775904178619385, -1.7621453444110315, 1.6236332654953003, 0.011440815404057503]
+        #Note order from /joint_states topic can be different from moveit order
+        self.home_joint_angles = [ 0.4377,-1.9370,-1.035682, -1.762, 1.6236, 0.011440]
 
         self.initial_forces = {'x': 0, 'y': 0, 'z' : 0}
         self.force_reading = 0
         self.in_motion = 0
 
     def status_callback(self, status_msg):
-        self.in_motion = status_msg.status.status
+        #print(status_msg.status_list[1])
+        self.in_motion = status_msg.status_list
 
     def force_callback(self, wrench_msg):
         self.force_reading = wrench_msg.wrench.force
@@ -118,10 +122,10 @@ class BoxTracerNode():
 
         current_pos = getattr(new_pose.position, coord)
         goal_pos = state_move_direction[state]['position']
-        num_steps = math.round(abs(current_pos - goal_pos) / plan_spacing)
+        num_steps = round(abs(current_pos - goal_pos) / plan_spacing)
 
-        for i in range(num_steps):
-            setattr(new_pose.position, coord, getattr(new_pose.position, coord) + plan_spacing)
+        for i in range(int(num_steps)):
+            setattr(new_pose.position, coord, getattr(new_pose.position, coord) + plan_spacing*state_move_direction[state]['direction'])
             waypoints.append(copy.deepcopy(new_pose))
 
         (plan, fraction) = self.move_group.compute_cartesian_path(
@@ -136,6 +140,7 @@ class BoxTracerNode():
         run_flag = raw_input("Valid Trajectory? [y to run]:")
 
         if run_flag =="y":
+            rospy.loginfo("Moving along box!")
             self.move_group.execute(plan, wait=False)
         else:
             rospy.signal_shutdown("Robot could not move to start location, ending execution!")
@@ -154,6 +159,7 @@ class BoxTracerNode():
 
         self.move_group.set_pose_target(new_pose)
         #wait means wait for movement to to finish before executing any more code
+        rospy.loginfo("Backing off!")
         plan_sucessful = self.move_group.go(wait=True)
         self.move_group.stop()
         self.move_group.clear_pose_targets()
@@ -194,13 +200,16 @@ class BoxTracerNode():
         else:
             rospy.signal_shutdown("Robot could not move to start location, ending execution!")
 
+        while self.force_reading == 0 and not rospy.is_shutdown():
+            rate.sleep()
 
         # Initialise force sensor measurements
-        self.initial_forces.x = self.force_reading.x
-        self.initial_forces.y = self.force_reading.y
-        self.initial_forces.z = self.force_reading.z
-        rospy.loginfo("Initial force values: Fx = %.4f, Fy = %.4f, Fz = %.4f", self.initial_forces.x, self.initial_forces.y, self.initial_forces.z)
+        self.initial_forces['x'] = self.force_reading.x
+        self.initial_forces['y'] = self.force_reading.y
+        self.initial_forces['z'] = self.force_reading.z
+        rospy.loginfo("Initial force values: Fx = %.4f, Fy = %.4f, Fz = %.4f", self.initial_forces['x'], self.initial_forces['y'], self.initial_forces['z'])
         
+        #breakpoint()
         
         while not rospy.is_shutdown():
 
@@ -209,22 +218,42 @@ class BoxTracerNode():
             self.move_to_position(self.current_state)
             rate.sleep()
 
-            while self.in_motion:
+            not_moving = False
+            seen_one = False
+            while not not_moving or not seen_one:
+            # while not (not_moving and seen_one):
                 force_mag = compute_force_magnitude(self.force_reading, self.initial_forces)
                 rospy.loginfo("Force magnitude: %.4f", force_mag)
+                
+                not_moving = all([s.status == 3 for s in self.in_motion])
+                if not seen_one:
+                    seen_one = any([s.status == 1 for s in self.in_motion])
+
+                if not_moving and seen_one:
+                    print("Motion stopped")
+                    print(self.in_motion)
+
                 if force_mag > TURN_THRESHOLD:
                     rospy.loginfo("Force threshold exceeded, turning!")
+                    execution_counter = 11
                     self.move_group.stop()
                     self.move_group.clear_pose_targets()
                     self.backoff(self.current_state)
                     self.current_state = state_transition_table[self.current_state]
                     sleep(1)
-                rate.sleep()
+                    rate.sleep()
+                else:
+                    rate.sleep()
+                    if not_moving and seen_one:
+                        rospy.loginfo("End of execution")
+                        self.move_group.stop()
+                        self.move_group.clear_pose_targets()
+                        self.current_state = state_transition_table[self.current_state]
 
 
 
 def compute_force_magnitude(force_reading, initial_force):
-    return math.sqrt((force_reading.x - initial_force.x)**2 + (force_reading.y - initial_force.y)**2 + (force_reading.z - initial_force.z)**2)
+    return math.sqrt((force_reading.x - initial_force['x'])**2 + (force_reading.y - initial_force['y'])**2 + (force_reading.z - initial_force['z'])**2)
 
 if __name__ == "__main__":
     try: 

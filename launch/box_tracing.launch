@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <node name="box_tracing" pkg="robot_control" type="box_tracing.py" output="screen"/>
+  <node name="box_tracing" pkg="robot_control" type="box_tracing_v2.py" output="screen"/>
   <node name="rq_sensor" pkg="robotiq_ft_sensor" type="rq_sensor" output="screen">
     <param name="serial_id" value="ttyUSB1" />
   </node>
