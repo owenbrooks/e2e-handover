@@ -1,8 +1,18 @@
 # Deep Human-Robot Handover
 ## Force Thresholding Baseline Approach
+Robot activates or releases the gripper when it detects a sufficient force in the z-axis.
+
 `roslaunch robot_control force_baseline.launch`
 
 ## Data recording
+Data is stored in the `data` directory.
+
+Pressing 'r' begins or ends a recording session, identified by a timestamp. Images and a csv file for each session are stored in a folder. Pressing 'shift' toggles the gripper state manually.
+
+`roslaunch robot_control recording.launch`
+
+## Training
+`python src/train.py`
 
 ## Running in gazebo
 - `roslaunch ur_gazebo ur5_bringup.launch` / `roslaunch robot_control ur5_bringup_gazebo.launch`
@@ -27,6 +37,9 @@ Optional:
 Install additional dependencies by running `rosdep install --from-paths src --ignore-src -r -y` from your catkin workspace.
 
 ## Miscellaneous commands for reference
+Bring up communication with the robot:
+`roslaunch ur_robot_driver ur5_bringup.launch robot_ip:=IP_OF_THE_ROBOT`
+
 Viewing the robot urdf:
 `roslaunch robot_control view_ur5_ft_grip_table.launch`
 
@@ -41,5 +54,53 @@ Camera:
 or `roslaunch camera_driver realsense_driver.launch`
 
 Testing recorder:
-`rosrun robot_control record.py /camera/color/image_raw:=/image_publisher_1638368985896366349/image_raw`
-`rosrun image_publisher image_publisher src/robot_control/test.png`
+- `rosrun robot_control record.py /camera/color/image_raw:=/image_publisher_1638368985896366349/image_raw`
+
+- `rosrun image_publisher image_publisher src/robot_control/test.png`
+
+## Docker:
+
+Build the container:
+`docker build . -t e2e`
+
+Initialise with nvidia GPU support (requires installing `nvidia-docker2` as specified in [nvidia docs](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#setting-up-nvidia-container-toolkit)):
+
+`docker run -e DISPLAY -e TERM
+    --privileged 
+    -v "/dev:/dev:rw"
+    -v "${HOME}:${HOME}:rw"
+    -v "/tmp/.X11-unix:/tmp/.X11-unix:rw"
+    --runtime=nvidia
+    --net=host
+    --hostname e2e
+    --name e2e
+    --entrypoint /ros_entrypoint.sh
+    -d e2e /usr/bin/tail -f /dev/null `
+
+Initialise without GPU support:
+
+`docker run -e DISPLAY -e TERM
+    --privileged 
+    -v "/dev:/dev:rw"
+    -v "${HOME}:${HOME}:rw"
+    -v "/tmp/.X11-unix:/tmp/.X11-unix:rw"
+    --net=host
+    --hostname e2e
+    --name e2e
+    --entrypoint /ros_entrypoint.sh
+    -d e2e /usr/bin/tail -f /dev/null `
+
+Drop into terminal:
+`docker exec -it e2e bash`
+
+Kill container:
+`docker kill e2e`
+
+Remove container:
+`docker rm e2e`
+
+Kill and remove container:
+`docker kill e2e && docker rm e2e`
+
+Start stopped container:
+`docker start e2e`

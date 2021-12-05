@@ -69,6 +69,7 @@
   <exec_depend>python-future</exec_depend>
   <exec_depend>python-pandas</exec_depend>
   <exec_depend>python-imaging</exec_depend>
+  <exec_depend>realsense2-camera</exec_depend>
   <!-- The export tag contains other, unspecified, tags -->
   <export>
     <!-- Other tools can request additional information be placed here -->
