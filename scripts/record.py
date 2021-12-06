@@ -13,7 +13,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import cv2
 from pynput import keyboard
 
-# Node to record data for 
+# Node to record data
 # Launch node, gripper opens
 # Give object to arm (triggered by force threshold)
 # Can take object from arm if needed (triggered by force threshold)
