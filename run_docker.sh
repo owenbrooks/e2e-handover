@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Script for building and working in a docker container
 
 attach_to_container() 
@@ -18,7 +18,7 @@ run_with_gpu()
     docker run -e DISPLAY -e TERM \
         --privileged \
         -v "/dev:/dev:rw" \
-        -v "${HOME}:${HOME}:rw" \
+        -v "$(pwd):/catkin_ws/src/e2e-handover:rw" \
         -v "/tmp/.X11-unix:/tmp/.X11-unix:rw" \
         --runtime=nvidia \
         --net=host \

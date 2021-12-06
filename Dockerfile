@@ -28,15 +28,16 @@ ENTRYPOINT /ros_entrypoint.sh
 ENV CATKIN_WS=/catkin_ws
 ENV SOURCE_DIR=${CATKIN_WS}/src/e2e-handover
 COPY ./e2e.rosinstall ${SOURCE_DIR}/e2e.rosinstall
+WORKDIR /${CATKIN_WS}/src
 RUN vcs import < ${SOURCE_DIR}/e2e.rosinstall
 
 COPY ./package.xml ${SOURCE_DIR}/package.xml
-WORKDIR /catkin_ws
+WORKDIR ${CATKIN_WS}}
 RUN rosdep update && rosdep install --from-paths src --ignore-src -r -y
 
 # Build the project
 COPY . ${SOURCE_DIR}
-RUN /bin/bash -c '. /opt/ros/$ROS_DISTRO/setup.bash; cd /catkin_ws; catkin_make'
-WORKDIR /catkin_ws/src/e2e-handover
+RUN /bin/bash -c '. /opt/ros/$ROS_DISTRO/setup.bash; cd /${CATKIN_WS}; catkin_make'
+WORKDIR ${SOURCE_DIR}}
 
-RUN echo "source /catkin_ws/devel/setup.bash" >> /etc/bash.bashrc
+RUN echo "source ${CATKIN_WS}/devel/setup.bash" >> /etc/bash.bashrc
