@@ -12,7 +12,7 @@ Pressing 'r' begins or ends a recording session, identified by a timestamp. Imag
 `roslaunch robot_control recording.launch`
 
 ## Training
-`python src/train.py`
+`python src/train.py /home/owen/srp_ws/src/e2e-handover/data/2021-12-01-15:30:36`
 
 ## Running in gazebo
 - `roslaunch ur_gazebo ur5_bringup.launch` / `roslaunch robot_control ur5_bringup_gazebo.launch`
@@ -33,6 +33,8 @@ Optional:
 - [fmauch Robot Descriptions](https://github.com/fmauch/universal_robot) (Should be installed as per Universal Robots instructions)
 - [Robotiq drivers](https://github.com/ros-industrial/robotiq) (Clone into `src` directory)
 - [Realsense Camera ROS Drivers](https://github.com/IntelRealSense/realsense-ros)
+
+Ensure pip is installed via `sudo apt-get install python-pip`.
 
 Install additional dependencies by running `rosdep install --from-paths src --ignore-src -r -y` from your catkin workspace.
 

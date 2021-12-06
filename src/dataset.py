@@ -7,7 +7,9 @@ import torch
 
 class DeepHandoverDataset(Dataset):
     def __init__(self, session_id, transform=None, target_transform=None):
-        annotations_file = os.path.join('..', 'data', session_id, session_id + '.csv')
+        current_dirname = os.path.dirname(__file__)
+        data_dir = os.path.join(current_dirname, '../data')
+        annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
         self.img_labels = pd.read_csv(annotations_file, sep=' ')
         self.session_id = session_id
         self.transform = transform
@@ -24,7 +26,9 @@ class DeepHandoverDataset(Dataset):
         return len(self.img_labels)
 
     def __getitem__(self, idx):
-        img_path = os.path.join('..', 'data', self.session_id, self.img_labels.iloc[idx, 0])
+        current_dirname = os.path.dirname(__file__)
+        data_dir = os.path.join(current_dirname, '../data')
+        img_path = os.path.join(data_dir, self.session_id, self.img_labels.iloc[idx, 0])
         image = Image.open(img_path)
         label = self.img_labels.iloc[idx, 1]
 
