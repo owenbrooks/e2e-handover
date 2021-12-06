@@ -34,6 +34,9 @@ Optional:
 - [Robotiq drivers](https://github.com/ros-industrial/robotiq) (Clone into `src` directory)
 - [Realsense Camera ROS Drivers](https://github.com/IntelRealSense/realsense-ros)
 
+Aside from ROS itself, these dependencies can be downloaded automatically by `vcstool` (install with `sudo apt install python3-vcstool`), then go to `src` directory and run `vcs import < e2e.rosinstall`
+To update the dependency list when adding more packages in the future, use `vcs export > e2e.rosinstall`
+
 Ensure pip is installed via `sudo apt-get install python-pip`.
 
 Install additional dependencies by running `rosdep install --from-paths src --ignore-src -r -y` from your catkin workspace.
