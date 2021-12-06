@@ -12,7 +12,9 @@ Pressing 'r' begins or ends a recording session, identified by a timestamp. Imag
 `roslaunch robot_control recording.launch`
 
 ## Training
-`python src/train.py /home/owen/srp_ws/src/e2e-handover/data/2021-12-01-15:30:36`
+`pip install wandb`
+`pip install torch`
+`python3 src/train.py /home/owen/srp_ws/src/e2e-handover/data/2021-12-01-15:30:36`
 
 ## Running in gazebo
 - `roslaunch ur_gazebo ur5_bringup.launch` / `roslaunch robot_control ur5_bringup_gazebo.launch`
@@ -98,14 +100,8 @@ Initialise without GPU support:
 Drop into terminal:
 `docker exec -it e2e bash`
 
-Kill container:
-`docker kill e2e`
-
 Remove container:
-`docker rm e2e`
-
-Kill and remove container:
-`docker kill e2e && docker rm e2e`
+`docker rm -f e2e`
 
 Start stopped container:
 `docker start e2e`
