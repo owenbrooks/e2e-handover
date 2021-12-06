@@ -1,31 +1,33 @@
 #!/bin/sh
 # Script for building and working in a docker container
 
-case "$1" in
-"build")
-    docker build . -t e2e
-    ;;
-"init") # with GPU support
-    if [ ! -z "$(docker ps -qa -f name=e2e)" ]; then
-        echo "The container is already initialized."
-        echo "To use it, run "
-        echo "    run_docker.sh run $2"
-        echo "To remove it, run "
-        echo "    docker rm -f e2e"
-    else
-        docker run -e DISPLAY -e TERM \
-            --privileged \
-            -v "/dev:/dev:rw" \
-            -v "${HOME}:${HOME}:rw" \
-            -v "/tmp/.X11-unix:/tmp/.X11-unix:rw" \
-            --runtime=nvidia \
-            --net=host \
-            --name e2e \
-            --entrypoint /ros_entrypoint.sh \
-            -d e2e /usr/bin/tail -f /dev/null
-    fi
-    ;;
-"init_no_gpu")  # without GPU support
+attach_to_container() 
+{
+    # Allow docker windows to show on our current X Server
+    xhost + >> /dev/null
+
+    # Start the container in case it's stopped
+    docker start e2e
+
+    # Attach a terminal into the container
+    exec docker exec -it e2e bash
+}
+
+run_with_gpu()
+{
+    docker run -e DISPLAY -e TERM \
+        --privileged \
+        -v "/dev:/dev:rw" \
+        -v "${HOME}:${HOME}:rw" \
+        -v "/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+        --runtime=nvidia \
+        --net=host \
+        --name e2e \
+        --entrypoint /ros_entrypoint.sh \
+        -d e2e /usr/bin/tail -f /dev/null
+}
+run_without_gpu()
+{
     docker run -e DISPLAY -e TERM \
         --privileged \
         -v "/dev:/dev:rw" \
@@ -38,26 +40,34 @@ case "$1" in
         --name e2e \
         --entrypoint /ros_entrypoint.sh \
         -d e2e /usr/bin/tail -f /dev/null
-    ;;
-"run")
-    # Allow docker windows to show on our current X Server
-    xhost + >> /dev/null
+}
 
-    # Start the container in case it's stopped
-    docker start e2e
-
-    # Attach a terminal into the container
-    exec docker exec -it e2e bash    
+case "$1" in
+"build")
+    docker build . -t e2e
     ;;
-*)
-    echo "Usage: run_docker [command]
+"--help")
+    echo "Usage: run_docker.sh [command]
 Available commands:
-    build
+    run_docker.sh
+        Attach a new terminal to the container (building, creating and starting it if necessary)
+    run_docker.sh build
         Build a new image from the Dockerfile in the current directory
-    init
-        Create a new container from the latest image
-    run
-        Attach a new terminal to the container (and start it if necessary)
-"
+    run_docker.sh --help
+        Show this help message    
+    "
+    ;;
+*) # Attach a new terminal to the container (building, creating and starting it if necessary)
+    if [ -z "$(docker images -f reference=e2e -q)" ]; then # if the image has not yet been built, build it
+        docker build . -t e2e
+    fi
+    if [ -z "$(docker ps -qa -f name=e2e)" ]; then # if container has not yet been created, create it
+        if [[ $(docker info | grep Runtimes) =~ nvidia ]] ; then # computer has nvidia-container-runtime, use it for GPU support
+            run_with_gpu
+        else # no nvidia-container-runtime
+            run_without_gpu
+        fi        
+    fi
+    attach_to_container
     ;;
 esac
