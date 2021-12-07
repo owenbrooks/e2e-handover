@@ -84,7 +84,9 @@ class InferenceNode():
 
         # Create network and load weights
         self.net = model.ResNet()
-        self.net.load_state_dict(torch.load("../models/handover.pt"))
+        current_dirname = os.path.dirname(__file__)
+        model_path = os.path.join(current_dirname, '../models/handover.pt')
+        self.net.load_state_dict(torch.load(model_path))
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         rospy.loginfo("Using device: " + str(self.device))
         self.net.to(self.device)
@@ -233,9 +235,9 @@ class InferenceNode():
         rospy.loginfo("Running inference node")
         rate = rospy.Rate(10)
 
-        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-            rospy.loginfo("Waiting for gripper to connect")
-            rate.sleep()
+        # while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+        #     rospy.loginfo("Waiting for gripper to connect")
+        #     rate.sleep()
 
         # initialise the gripper
         grip_cmd = reset_gripper_msg()
