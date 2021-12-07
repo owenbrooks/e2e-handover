@@ -10,9 +10,9 @@ import numpy as np
 from torch.utils.data import random_split 
 import os
 import argparse
-import wandb
+# import wandb
 
-wandb.init(project="e2e-handover", entity="owenbrooks")
+# wandb.init(project="e2e-handover", entity="owenbrooks")
 
 def main(args):
     session_id = args.session
@@ -24,7 +24,7 @@ def main(args):
     train_fraction = 0.8
     train_length = int(len(dataset)*train_fraction)
     test_length = len(dataset) - train_length
-    train_data, test_data = random_split(dataset, [train_length, test_length], generator=torch.Generator().manual_seed(42))
+    train_data, test_data = random_split(dataset, [train_length, test_length])
 
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, num_workers=args.num_workers)
@@ -47,7 +47,7 @@ def train(net, train_loader, test_loader, device, args):
 
     # Create directory and path for saving model
     current_dirname = os.path.dirname(__file__)
-    model_dir = os.path.join(current_dirname, '../models')
+    model_dir = os.path.join(current_dirname, '../../models')
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
     model_path = os.path.join(model_dir, args.session + '.pt')
@@ -84,14 +84,14 @@ def train(net, train_loader, test_loader, device, args):
         test_loss, test_accuracy = test(net, test_loader, criterion, device)
 
         # Log loss in weights and biases
-        wandb.log({"train_loss": train_loss, "test_loss": test_loss})
-        wandb.watch(net)
+        # wandb.log({"train_loss": train_loss, "test_loss": test_loss})
+        # wandb.watch(net)
 
         print("Train loss: %0.5f, test loss: %0.5f" % (train_loss, test_loss))
 
         torch.save(net, model_path)
 
-    log_predictions(net, test_loader, device)
+    # log_predictions(net, test_loader, device)
     print('Finished training')
 
 def log_predictions(net, test_loader, device):
@@ -161,5 +161,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     print(args)
-    wandb.config.update(args)
+    # wandb.config.update(args)
     main(args)

@@ -73,3 +73,7 @@ Running in gazebo
 - `roslaunch ur_gazebo ur5_bringup.launch` / `roslaunch robot_control ur5_bringup_gazebo.launch`
 - `roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch sim:=true`
 
+apt install python3-pip
+pip3 install catkin_pkg
+pip3 install rospkg
+pip3 install em
