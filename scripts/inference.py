@@ -12,6 +12,9 @@ from datetime import datetime
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 from pynput import keyboard
+from robot_control import model
+import torch
+from robot_control.image_ops import prepare_image
 
 # Node to record data
 # Launch node, gripper opens
@@ -65,6 +68,7 @@ class InferenceNode():
         self.abs_z_force = 0.0
 
         self.is_recording = False
+        self.is_inference_active = False
         self.session_id = ""
 
         self.session_image_count = 0
@@ -77,6 +81,13 @@ class InferenceNode():
         data_dir_exists = os.path.exists(data_dir)
         if not data_dir_exists:
             os.makedirs(data_dir)
+
+        # Create network and load weights
+        self.net = model.ResNet()
+        self.net.load_state_dict(torch.load("../models/handover.pt"))
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        rospy.loginfo("Using device: " + str(self.device))
+        self.net.to(self.device)
 
     def force_callback(self, wrench_msg):
         self.abs_z_force = abs(wrench_msg.wrench.force.z)
@@ -173,6 +184,21 @@ class InferenceNode():
             with open(csv_path, 'a+') as csvfile:
                 datawriter = csv.writer(csvfile, delimiter=' ')
                 datawriter.writerow([image_name, gripper_is_open] + self.wrench_array)
+        
+        if self.is_inference_active:
+            gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
+            
+            img_cv2 = self.cv_bridge.imgmsg_to_cv2(image_msg, "bgr8")
+            img_t = prepare_image(img_cv2).unsqueeze_(0).to(self.device)
+            forces_t = torch.autograd.Variable(self.wrench_array).unsqueeze_(0).to(self.device)
+
+            # forward + backward + optimize
+            output_t = self.net(img_t, forces_t)
+            output = output_t.cpu().detach().numpy()
+
+
+            rospy.loginfo(output)
+
 
     def compute_next_state(self, force):
         next_state = self.current_state
