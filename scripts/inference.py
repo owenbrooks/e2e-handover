@@ -83,9 +83,10 @@ class InferenceNode():
             os.makedirs(data_dir)
 
         # Create network and load weights
+        model_name = rospy.get_param("model_name", default='2021-12-01-15:30:36.pt')
         self.net = model.ResNet()
         current_dirname = os.path.dirname(__file__)
-        model_path = os.path.join(current_dirname, '../models/handover.pt')
+        model_path = os.path.join(current_dirname, '../models', model_name)
         self.net.load_state_dict(torch.load(model_path))
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         rospy.loginfo("Using device: " + str(self.device))
