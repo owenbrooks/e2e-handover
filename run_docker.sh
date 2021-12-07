@@ -31,10 +31,7 @@ run_without_gpu()
     docker run -e DISPLAY -e TERM \
         --privileged \
         -v "/dev:/dev:rw" \
-        -v "${HOME}:${HOME}:rw" \
-        -v "/tmp/.X11-unix:rw" \
-        -v "/dev:/dev:rw" \
-        -v "${HOME}:${HOME}:rw" \
+        -v "$(pwd):/catkin_ws/src/e2e-handover:rw" \
         -v "/tmp/.X11-unix:/tmp/.X11-unix:rw" \
         --net=host \
         --name e2e \

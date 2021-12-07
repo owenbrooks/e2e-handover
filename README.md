@@ -16,10 +16,6 @@ Pressing 'r' begins or ends a recording session, identified by a timestamp. Imag
 `pip install torch`
 `python3 src/train.py /home/owen/srp_ws/src/e2e-handover/data/2021-12-01-15:30:36`
 
-## Running in gazebo
-- `roslaunch ur_gazebo ur5_bringup.launch` / `roslaunch robot_control ur5_bringup_gazebo.launch`
-- `roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch sim:=true`
-
 Optional:
 - `roslaunch ur5_moveit_config moveit_rviz.launch rviz_config:=$(rospack find ur5_moveit_config)/launch/moveit.rviz`
 
@@ -30,20 +26,28 @@ Optional:
 - Robotiq FT300 force-torque sensor
 
 # Dependencies
+## Using Docker
+
+- Install docker (using `sudo apt install docker.io`)
+- (optional) Install [nvidia-docker2](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#setting-up-nvidia-container-toolkit)
+- Run `./run_docker.sh`
+
+## Building from source
 - [ROS Melodic](http://wiki.ros.org/melodic/Installation)
 - [Universal Robots ROS Driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver) (Follow *Building* instructions)
 - [fmauch Robot Descriptions](https://github.com/fmauch/universal_robot) (Should be installed as per Universal Robots instructions)
 - [Robotiq drivers](https://github.com/ros-industrial/robotiq) (Clone into `src` directory)
 - [Realsense Camera ROS Drivers](https://github.com/IntelRealSense/realsense-ros)
 
-Aside from ROS itself, these dependencies can be downloaded automatically by `vcstool` (install with `sudo apt install python3-vcstool`), then go to `src` directory and run `vcs import < e2e.rosinstall`
-To update the dependency list when adding more packages in the future, use `vcs export > e2e.rosinstall`
+Aside from ROS itself, these dependencies can be downloaded automatically by `vcstool` (install with `sudo apt install python3-vcstool`), then go to `src` directory and run `vcs import < e2e.rosinstall`.
+
+To update the dependency list when adding more packages in the future, use `vcs export > e2e.rosinstall`.
 
 Ensure pip is installed via `sudo apt-get install python-pip`.
 
 Install additional dependencies by running `rosdep install --from-paths src --ignore-src -r -y` from your catkin workspace.
 
-## Miscellaneous commands for reference
+# Miscellaneous commands for reference
 Bring up communication with the robot:
 `roslaunch ur_robot_driver ur5_bringup.launch robot_ip:=IP_OF_THE_ROBOT`
 
@@ -65,43 +69,7 @@ Testing recorder:
 
 - `rosrun image_publisher image_publisher src/robot_control/test.png`
 
-## Docker:
+Running in gazebo
+- `roslaunch ur_gazebo ur5_bringup.launch` / `roslaunch robot_control ur5_bringup_gazebo.launch`
+- `roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch sim:=true`
 
-Build the container:
-`docker build . -t e2e`
-
-Initialise with nvidia GPU support (requires installing `nvidia-docker2` as specified in [nvidia docs](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#setting-up-nvidia-container-toolkit)):
-
-`docker run -e DISPLAY -e TERM
-    --privileged 
-    -v "/dev:/dev:rw"
-    -v "${HOME}:${HOME}:rw"
-    -v "/tmp/.X11-unix:/tmp/.X11-unix:rw"
-    --runtime=nvidia
-    --net=host
-    --hostname e2e
-    --name e2e
-    --entrypoint /ros_entrypoint.sh
-    -d e2e /usr/bin/tail -f /dev/null `
-
-Initialise without GPU support:
-
-`docker run -e DISPLAY -e TERM
-    --privileged 
-    -v "/dev:/dev:rw"
-    -v "${HOME}:${HOME}:rw"
-    -v "/tmp/.X11-unix:/tmp/.X11-unix:rw"
-    --net=host
-    --hostname e2e
-    --name e2e
-    --entrypoint /ros_entrypoint.sh
-    -d e2e /usr/bin/tail -f /dev/null `
-
-Drop into terminal:
-`docker exec -it e2e bash`
-
-Remove container:
-`docker rm -f e2e`
-
-Start stopped container:
-`docker start e2e`
