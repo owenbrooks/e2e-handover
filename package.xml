@@ -67,8 +67,8 @@
   <exec_depend>moveit_commander</exec_depend>
   <exec_depend>pynput-pip</exec_depend>
   <exec_depend>python-pytorch-pip</exec_depend>
-  <exec_depend>python-future</exec_depend>
-  <exec_depend>python-pandas</exec_depend>
+  <exec_depend>python3-future</exec_depend>
+  <exec_depend>python3-pandas</exec_depend>
   <exec_depend>python-imaging</exec_depend>
   <exec_depend>realsense2_camera</exec_depend>
   <!-- The export tag contains other, unspecified, tags -->

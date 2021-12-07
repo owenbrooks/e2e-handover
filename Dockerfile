@@ -1,9 +1,9 @@
-FROM osrf/ros:melodic-desktop-full
+FROM osrf/ros:noetic-desktop-full
 
 # Dev tools
 RUN apt-get -y update && apt-get install -y \
     x11-apps \
-    python-pip \
+    python3-pip \
     python3-vcstool \
     build-essential \
     vim \

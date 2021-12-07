@@ -7,7 +7,7 @@ from sensor_msgs.msg import Joy, Image
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 from math import sqrt
 from enum import Enum
-from gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
+from robot_control.gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
 from datetime import datetime
 from cv_bridge import CvBridge, CvBridgeError
 import cv2

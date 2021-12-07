@@ -19,6 +19,10 @@ Pressing 'r' begins or ends a recording session, identified by a timestamp. Imag
 Optional:
 - `roslaunch ur5_moveit_config moveit_rviz.launch rviz_config:=$(rospack find ur5_moveit_config)/launch/moveit.rviz`
 
+## Inference
+
+`roslaunch robot_control inference.launch`
+
 # Hardware Setup
 - UR5 Robot
 - Intel Realsense 2 RGBD camera
@@ -33,17 +37,17 @@ Optional:
 - Run `./run_docker.sh`
 
 ## Building from source
-- [ROS Melodic](http://wiki.ros.org/melodic/Installation)
+- [ROS Noetic](http://wiki.ros.org/noetic/Installation)
 - [Universal Robots ROS Driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver) (Follow *Building* instructions)
 - [fmauch Robot Descriptions](https://github.com/fmauch/universal_robot) (Should be installed as per Universal Robots instructions)
-- [Robotiq drivers](https://github.com/ros-industrial/robotiq) (Clone into `src` directory)
+- [Robotiq drivers (updated to work with ROS Noetic)](https://github.com/jr-robotics/robotiq.git) (Clone into `src` directory)
 - [Realsense Camera ROS Drivers](https://github.com/IntelRealSense/realsense-ros)
 
 Aside from ROS itself, these dependencies can be downloaded automatically by `vcstool` (install with `sudo apt install python3-vcstool`), then go to `src` directory and run `vcs import < e2e.rosinstall`.
 
 To update the dependency list when adding more packages in the future, use `vcs export > e2e.rosinstall`.
 
-Ensure pip is installed via `sudo apt-get install python-pip`.
+Ensure pip is installed via `sudo apt-get install python3-pip`.
 
 Install additional dependencies by running `rosdep install --from-paths src --ignore-src -r -y` from your catkin workspace.
 
@@ -72,8 +76,3 @@ Testing recorder:
 Running in gazebo
 - `roslaunch ur_gazebo ur5_bringup.launch` / `roslaunch robot_control ur5_bringup_gazebo.launch`
 - `roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch sim:=true`
-
-apt install python3-pip
-pip3 install catkin_pkg
-pip3 install rospkg
-pip3 install em

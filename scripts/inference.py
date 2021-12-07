@@ -7,7 +7,7 @@ from sensor_msgs.msg import Joy, Image
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 from math import sqrt
 from enum import Enum
-from gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
+from robot_control.gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
 from datetime import datetime
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
@@ -199,8 +199,17 @@ class InferenceNode():
             output_t = self.net(img_t, forces_t)
             output = output_t.cpu().detach().numpy()
 
-
+            gripper_should_open = float(output) > .5
             rospy.loginfo(output)
+
+            if gripper_should_open:
+                self.current_state = GripState.RELEASING
+                grip_cmd = open_gripper_msg()
+                self.gripper_pub.publish(grip_cmd) # open gripper
+            else:
+                self.current_state = GripState.GRABBING
+                grip_cmd = close_gripper_msg()
+                self.gripper_pub.publish(grip_cmd) # close gripper
 
 
     def compute_next_state(self, force):
@@ -236,9 +245,9 @@ class InferenceNode():
         rospy.loginfo("Running inference node")
         rate = rospy.Rate(10)
 
-        # while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-        #     rospy.loginfo("Waiting for gripper to connect")
-        #     rate.sleep()
+        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+            rospy.loginfo("Waiting for gripper to connect")
+            rate.sleep()
 
         # initialise the gripper
         grip_cmd = reset_gripper_msg()

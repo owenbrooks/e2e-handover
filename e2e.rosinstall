@@ -9,5 +9,5 @@ repositories:
     version: calibration_devel
   robotiq:
     type: git
-    url: https://github.com/ros-industrial/robotiq.git
-    version: kinetic-devel
+    url: https://github.com/jr-robotics/robotiq.git
+    version: noetic-devel
