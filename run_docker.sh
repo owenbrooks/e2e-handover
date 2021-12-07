@@ -60,8 +60,10 @@ Available commands:
     fi
     if [ -z "$(docker ps -qa -f name=e2e)" ]; then # if container has not yet been created, create it
         if [[ $(docker info | grep Runtimes) =~ nvidia ]] ; then # computer has nvidia-container-runtime, use it for GPU support
+            echo "Initialising with GPU support"
             run_with_gpu
         else # no nvidia-container-runtime
+            echo "Running without GPU support"
             run_without_gpu
         fi        
     fi
