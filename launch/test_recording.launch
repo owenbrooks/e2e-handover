@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+  <node name="record" pkg="robot_control" type="record.py" output="screen">
+    <remap from="/camera/color/image_raw" to="/image_publisher/image_raw" />
+  </node>
+  <node name="rq_sensor" pkg="robotiq_ft_sensor" type="rq_sensor" output="screen">
+    <param name="serial_id" value="ttyUSB1" />
+  </node>
+  <node name="Robotiq2FGripperRtuNode" pkg="robotiq_2f_gripper_control" type="Robotiq2FGripperRtuNode.py" args="/dev/ttyUSB0" output="screen"/>
+  <node name="image_publisher" pkg="image_publisher" type="image_publisher" args="$(find robot_control)/data/test.png" output="screen"/>
+</launch>

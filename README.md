@@ -4,6 +4,9 @@ Robot activates or releases the gripper when it detects a sufficient force in th
 
 `roslaunch robot_control force_baseline.launch`
 
+Optional:
+- `roslaunch ur5_moveit_config moveit_rviz.launch rviz_config:=$(rospack find ur5_moveit_config)/launch/moveit.rviz`
+
 ## Data recording
 Data is stored in the `data` directory.
 
@@ -12,12 +15,13 @@ Pressing 'r' begins or ends a recording session, identified by a timestamp. Imag
 `roslaunch robot_control recording.launch`
 
 ## Training
-`pip install wandb`
-`pip install torch`
-`python3 src/train.py /home/owen/srp_ws/src/e2e-handover/data/2021-12-01-15:30:36`
+As the docker container doesn't have CUDA support, this should be done outside the container.
 
-Optional:
-- `roslaunch ur5_moveit_config moveit_rviz.launch rviz_config:=$(rospack find ur5_moveit_config)/launch/moveit.rviz`
+`pip install wandb`
+
+`pip install torch`
+
+`python3 src/robot_control/train.py --session 2021-12-01-15:30:36`
 
 ## Inference
 
@@ -69,9 +73,11 @@ Camera:
 or `roslaunch camera_driver realsense_driver.launch`
 
 Testing recorder:
-- `rosrun robot_control record.py /camera/color/image_raw:=/image_publisher_1638368985896366349/image_raw`
+- Place an image in data/test.png
+- `roslaunch robot_control test_recording.launch`
 
-- `rosrun image_publisher image_publisher src/robot_control/test.png`
+Testing inference:
+- `roslaunch robot_control test_inference.launch`
 
 Running in gazebo
 - `roslaunch ur_gazebo ur5_bringup.launch` / `roslaunch robot_control ur5_bringup_gazebo.launch`
