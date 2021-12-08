@@ -71,7 +71,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # setup entrypoint
-COPY ./ros_entrypoint.sh /
+COPY ./docker/ros_entrypoint.sh /
 
 ##### ROS install ends
 
@@ -88,5 +88,28 @@ RUN apt-get -y update && apt-get install -y \
     wget \
     tmux
 
-# ENTRYPOINT ["/ros_entrypoint.sh"]
+# Make the prompt a little nicer
+RUN echo "PS1='${debian_chroot:+($debian_chroot)}\u@:\w\$ '" >> /etc/bash.bashrc  
+
+# Project specific dependencies
+ENV CATKIN_WS=/catkin_ws
+ENV SOURCE_DIR=${CATKIN_WS}/src/e2e-handover
+COPY ./e2e.rosinstall ${SOURCE_DIR}/e2e.rosinstall
+WORKDIR ${CATKIN_WS}/src
+RUN vcs import < ${SOURCE_DIR}/e2e.rosinstall
+
+COPY ./package.xml ${SOURCE_DIR}/package.xml
+WORKDIR ${CATKIN_WS}
+RUN rosdep update && rosdep install --from-paths src --ignore-src -r -y
+
+# Build the project
+COPY . ${SOURCE_DIR}
+RUN /bin/bash -c '. /opt/ros/$ROS_DISTRO/setup.bash; cd /${CATKIN_WS}; catkin_make'
+WORKDIR ${SOURCE_DIR}
+
+# Add source commands to bashrc
+RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /etc/bash.bashrc
+RUN echo "source ${CATKIN_WS}/devel/setup.bash" >> /etc/bash.bashrc
+
+ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]

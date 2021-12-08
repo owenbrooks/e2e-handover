@@ -42,7 +42,7 @@ run_without_gpu()
 
 case "$1" in
 "build")
-    docker build . -t cuda_test
+    docker build .. -t cuda_test -f cuda.dockerfile
     ;;
 "--help")
     echo "Usage: run_docker.sh [command]
