@@ -11,7 +11,8 @@ RUN apt-get -y update && apt-get install -y \
     nano \
     git \
     wget \
-    tmux
+    tmux \
+    && rm -rf /var/lib/apt/lists/*
 
 # Make the prompt a little nicer
 RUN echo "PS1='${debian_chroot:+($debian_chroot)}\u@:\w\$ '" >> /etc/bash.bashrc  
@@ -25,7 +26,7 @@ RUN vcs import < ${SOURCE_DIR}/e2e.rosinstall
 
 COPY ./package.xml ${SOURCE_DIR}/package.xml
 WORKDIR ${CATKIN_WS}
-RUN rosdep update && rosdep install --from-paths src --ignore-src -r -y
+RUN apt-get -y update && rosdep update && rosdep install --from-paths src --ignore-src -r -y
 
 # Build the project
 COPY . ${SOURCE_DIR}
