@@ -7,10 +7,10 @@ attach_to_container()
     xhost + >> /dev/null
 
     # Start the container in case it's stopped
-    docker start e2e
+    docker start cuda_test
 
     # Attach a terminal into the container
-    exec docker exec -it e2e bash
+    exec docker exec -it cuda_test bash
 }
 
 run_with_gpu()
@@ -22,9 +22,10 @@ run_with_gpu()
         -v "/tmp/.X11-unix:/tmp/.X11-unix:rw" \
         --runtime=nvidia \
         --net=host \
-        --name e2e \
+        --name cuda_test \
+        --gpus all \
         --entrypoint /ros_entrypoint.sh \
-        -d e2e /usr/bin/tail -f /dev/null
+        -d cuda_test /usr/bin/tail -f /dev/null
 }
 run_without_gpu()
 {
@@ -34,14 +35,14 @@ run_without_gpu()
         -v "$(pwd):/catkin_ws/src/e2e-handover:rw" \
         -v "/tmp/.X11-unix:/tmp/.X11-unix:rw" \
         --net=host \
-        --name e2e \
+        --name cuda_test \
         --entrypoint /ros_entrypoint.sh \
-        -d e2e /usr/bin/tail -f /dev/null
+        -d cuda_test /usr/bin/tail -f /dev/null
 }
 
 case "$1" in
 "build")
-    docker build . -t e2e
+    docker build . -t cuda_test
     ;;
 "--help")
     echo "Usage: run_docker.sh [command]
@@ -55,10 +56,10 @@ Available commands:
     "
     ;;
 *) # Attach a new terminal to the container (building, creating and starting it if necessary)
-    if [ -z "$(docker images -f reference=e2e -q)" ]; then # if the image has not yet been built, build it
-        docker build . -t e2e
+    if [ -z "$(docker images -f reference=cuda_test -q)" ]; then # if the image has not yet been built, build it
+        docker build . -t cuda_test
     fi
-    if [ -z "$(docker ps -qa -f name=e2e)" ]; then # if container has not yet been created, create it
+    if [ -z "$(docker ps -qa -f name=cuda_test)" ]; then # if container has not yet been created, create it
         if [[ $(docker info | grep Runtimes) =~ nvidia ]] ; then # computer has nvidia-container-runtime, use it for GPU support
             echo "Initialising with GPU support"
             run_with_gpu

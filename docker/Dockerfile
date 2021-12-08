@@ -6,9 +6,11 @@ RUN apt-get -y update && apt-get install -y \
     python3-pip \
     python3-vcstool \
     build-essential \
+    software-properties-common \
     vim \
     nano \
     git \
+    wget \
     tmux
 
 # Nvidia GPU Support (if run with nvidia-container-runtime)
@@ -17,12 +19,16 @@ ENV NVIDIA_VISIBLE_DEVICES \
 ENV NVIDIA_DRIVER_CAPABILITIES \
     ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
 
-RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /etc/bash.bashrc
+# Install CUDA
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
+RUN mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/7fa2af80.pub
+RUN add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
+RUN apt-get update && apt-get -y install cuda
+
+
 # Make the prompt a little nicer
 RUN echo "PS1='${debian_chroot:+($debian_chroot)}\u@:\w\$ '" >> /etc/bash.bashrc  
-
-CMD /bin/bash
-ENTRYPOINT /ros_entrypoint.sh
 
 # Project specific dependencies
 ENV CATKIN_WS=/catkin_ws
@@ -40,4 +46,9 @@ COPY . ${SOURCE_DIR}
 RUN /bin/bash -c '. /opt/ros/$ROS_DISTRO/setup.bash; cd /${CATKIN_WS}; catkin_make'
 WORKDIR ${SOURCE_DIR}
 
+# Add source commands to bashrc
+RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /etc/bash.bashrc
 RUN echo "source ${CATKIN_WS}/devel/setup.bash" >> /etc/bash.bashrc
+
+ENTRYPOINT /ros_entrypoint.sh
+CMD /bin/bash
