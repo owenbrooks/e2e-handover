@@ -25,7 +25,7 @@ run_with_gpu()
         --name cuda_test \
         --gpus all \
         --entrypoint /ros_entrypoint.sh \
-        -d cuda_test /usr/bin/tail -f /dev/null
+        -d ghcr.io/owenbrooks/e2e-handover:main /usr/bin/tail -f /dev/null
 }
 run_without_gpu()
 {
@@ -37,12 +37,15 @@ run_without_gpu()
         --net=host \
         --name cuda_test \
         --entrypoint /ros_entrypoint.sh \
-        -d cuda_test /usr/bin/tail -f /dev/null
+        -d ghcr.io/owenbrooks/e2e-handover:main /usr/bin/tail -f /dev/null
 }
 
 case "$1" in
 "build")
-    docker build . -t cuda_test -f docker/cuda.dockerfile
+    docker build . -t ghcr.io/owenbrooks/e2e-handover:main -f docker/cuda.dockerfile
+    ;;
+"pull")
+    docker pull ghcr.io/owenbrooks/e2e-handover:main
     ;;
 "rm")
     docker rm -f cuda_test
@@ -51,16 +54,18 @@ case "$1" in
     echo "Usage: run_docker.sh [command]
 Available commands:
     run_docker.sh
-        Attach a new terminal to the container (building, creating and starting it if necessary)
+        Attach a new terminal to the container (pulling, creating and starting it if necessary)
     run_docker.sh build
         Build a new image from the Dockerfile in the current directory
+    run_docker.sh rm
+        Remove the current container
     run_docker.sh --help
         Show this help message    
     "
     ;;
-*) # Attach a new terminal to the container (building, creating and starting it if necessary)
-    if [ -z "$(docker images -f reference=cuda_test -q)" ]; then # if the image has not yet been built, build it
-        docker build . -t cuda_test -f docker/cuda.dockerfile
+*) # Attach a new terminal to the container (pulling, creating and starting it if necessary)
+    if [ -z "$(docker images -f reference=ghcr.io/owenbrooks/e2e-handover:main -q)" ]; then # if the image does not yet exist, pull it
+        docker pull ghcr.io/owenbrooks/e2e-handover:main
     fi
     if [ -z "$(docker ps -qa -f name=cuda_test)" ]; then # if container has not yet been created, create it
         if [[ $(docker info | grep Runtimes) =~ nvidia ]] ; then # computer has nvidia-container-runtime, use it for GPU support

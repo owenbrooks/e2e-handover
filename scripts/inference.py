@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import os
 import csv
+
+from numpy.core.numeric import NaN
 import rospy
 from geometry_msgs.msg import WrenchStamped
 from sensor_msgs.msg import Joy, Image
@@ -91,6 +93,8 @@ class InferenceNode():
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         rospy.loginfo("Using device: " + str(self.device))
         self.net.to(self.device)
+
+        self.model_output = NaN
 
     def force_callback(self, wrench_msg):
         self.abs_z_force = abs(wrench_msg.wrench.force.z)
@@ -201,8 +205,8 @@ class InferenceNode():
             output_t = self.net(img_t, forces_t)
             output = output_t.cpu().detach().numpy()
 
-            gripper_should_open = float(output) > .5
-            rospy.loginfo(output)
+            gripper_should_open = float(output[0]) > .5
+            self.model_output = output
 
             if gripper_should_open:
                 self.current_state = GripState.RELEASING
@@ -270,7 +274,7 @@ class InferenceNode():
                 print("" + str(self.current_state) + " -> " + str(next_state))
                 self.current_state = next_state
 
-            rospy.loginfo("Rec: %s, infer: %s, f_z: %.2f, %s, %s", self.is_recording, self.is_inference_active, self.abs_z_force, self.obj_det_state, self.current_state)
+            rospy.loginfo("Rec: %s, infer: %s, out: %.3f, f_z: %.2f, %s, %s", self.is_recording, self.is_inference_active, self.model_output, self.abs_z_force, self.obj_det_state, self.current_state)
 
             rate.sleep()
 
