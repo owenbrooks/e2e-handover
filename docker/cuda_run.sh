@@ -42,7 +42,10 @@ run_without_gpu()
 
 case "$1" in
 "build")
-    docker build .. -t cuda_test -f cuda.dockerfile
+    docker build . -t cuda_test -f docker/cuda.dockerfile
+    ;;
+"rm")
+    docker rm -f cuda_test
     ;;
 "--help")
     echo "Usage: run_docker.sh [command]
@@ -57,7 +60,7 @@ Available commands:
     ;;
 *) # Attach a new terminal to the container (building, creating and starting it if necessary)
     if [ -z "$(docker images -f reference=cuda_test -q)" ]; then # if the image has not yet been built, build it
-        docker build . -t cuda_test
+        docker build . -t cuda_test -f docker/cuda.dockerfile
     fi
     if [ -z "$(docker ps -qa -f name=cuda_test)" ]; then # if container has not yet been created, create it
         if [[ $(docker info | grep Runtimes) =~ nvidia ]] ; then # computer has nvidia-container-runtime, use it for GPU support
