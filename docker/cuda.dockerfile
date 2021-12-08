@@ -6,7 +6,7 @@ RUN apt-get -y update && apt-get install -y \
     python3-pip \
     python3-vcstool \
     build-essential \
-    software-properties-common \
+    libnvidia-gl-470 \
     vim \
     nano \
     git \

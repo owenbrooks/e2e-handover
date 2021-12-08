@@ -1,2 +1,4 @@
 .git
 Dockerfile
+cuda.dockerfile
+.dockerignore
