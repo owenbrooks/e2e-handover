@@ -87,7 +87,7 @@ class InferenceNode():
         self.net = model.ResNet()
         current_dirname = os.path.dirname(__file__)
         model_path = os.path.join(current_dirname, '../models', model_name)
-        self.net.load_state_dict(torch.load(model_path))
+        self.net.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         rospy.loginfo("Using device: " + str(self.device))
         self.net.to(self.device)
@@ -161,6 +161,8 @@ class InferenceNode():
             char = key.char
             if char == 'r': # r key to start/stop recording
                 self.toggle_recording()
+            if char == 'i': # i key to start/stop inference controlling the gripper
+                self.is_inference_active = not self.is_inference_active
         except AttributeError: # special keys (ctrl, alt, etc.) will cause this exception
             if key == keyboard.Key.shift: # space bar to open/close gripper
                 self.toggle_gripper()
@@ -193,7 +195,7 @@ class InferenceNode():
             
             img_cv2 = self.cv_bridge.imgmsg_to_cv2(image_msg, "bgr8")
             img_t = prepare_image(img_cv2).unsqueeze_(0).to(self.device)
-            forces_t = torch.autograd.Variable(self.wrench_array).unsqueeze_(0).to(self.device)
+            forces_t = torch.autograd.Variable(torch.FloatTensor(self.wrench_array)).unsqueeze_(0).to(self.device)
 
             # forward + backward + optimize
             output_t = self.net(img_t, forces_t)
@@ -245,9 +247,9 @@ class InferenceNode():
         rospy.loginfo("Running inference node")
         rate = rospy.Rate(10)
 
-        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-            rospy.loginfo("Waiting for gripper to connect")
-            rate.sleep()
+        # while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+        #     rospy.loginfo("Waiting for gripper to connect")
+        #     rate.sleep()
 
         # initialise the gripper
         grip_cmd = reset_gripper_msg()
@@ -268,7 +270,7 @@ class InferenceNode():
                 print("" + str(self.current_state) + " -> " + str(next_state))
                 self.current_state = next_state
 
-            rospy.loginfo("Recording: %s, f_z: %.2f, %s, %s", self.is_recording, self.abs_z_force, self.obj_det_state, self.current_state)
+            rospy.loginfo("Rec: %s, infer: %s, f_z: %.2f, %s, %s", self.is_recording, self.is_inference_active, self.abs_z_force, self.obj_det_state, self.current_state)
 
             rate.sleep()
 

@@ -10,7 +10,7 @@ import numpy as np
 from torch.utils.data import random_split 
 import os
 import argparse
-# import wandb
+import wandb
 
 # wandb.init(project="e2e-handover", entity="owenbrooks")
 
@@ -61,6 +61,7 @@ def train(net, train_loader, test_loader, device, args):
         for i, data in enumerate(train_loader):
             # get the inputs
             img = torch.autograd.Variable(data[0]).to(device)
+            print(img.shape)
             forces = torch.autograd.Variable(data[1]).to(device)
             gripper_is_open = torch.autograd.Variable(data[2]).to(device)
 
@@ -89,9 +90,9 @@ def train(net, train_loader, test_loader, device, args):
 
         print("Train loss: %0.5f, test loss: %0.5f" % (train_loss, test_loss))
 
-        torch.save(net, model_path)
+        torch.save(net.state_dict(), model_path)
 
-    # log_predictions(net, test_loader, device)
+    log_predictions(net, test_loader, device)
     print('Finished training')
 
 def log_predictions(net, test_loader, device):
