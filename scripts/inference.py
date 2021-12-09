@@ -205,18 +205,20 @@ class InferenceNode():
             output_t = self.net(img_t, forces_t)
             output = output_t.cpu().detach().numpy()
 
-            gripper_should_open = float(output[0]) > .5
+            gripper_should_be_open = float(output[0]) > .5
             self.model_output = output
 
-            if gripper_should_open:
-                self.current_state = GripState.RELEASING
-                grip_cmd = open_gripper_msg()
-                self.gripper_pub.publish(grip_cmd) # open gripper
-            else:
-                self.current_state = GripState.GRABBING
-                grip_cmd = close_gripper_msg()
-                self.gripper_pub.publish(grip_cmd) # close gripper
-
+            # Open or close gripper based on current state and model output
+            if self.current_state == GripState.WAITING:
+                if not gripper_should_be_open:
+                    self.current_state = GripState.GRABBING
+                    grip_cmd = close_gripper_msg()
+                    self.gripper_pub.publish(grip_cmd) # close gripper
+            elif self.current_state == GripState.HOLDING:
+                if gripper_should_be_open:
+                    self.current_state = GripState.RELEASING
+                    grip_cmd = open_gripper_msg()
+                    self.gripper_pub.publish(grip_cmd) # open gripper
 
     def compute_next_state(self, force):
         next_state = self.current_state

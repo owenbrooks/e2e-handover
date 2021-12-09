@@ -14,6 +14,8 @@ Pressing 'r' begins or ends a recording session, identified by a timestamp. Imag
 
 `roslaunch robot_control recording.launch`
 
+Optionally, record the raw ROS messages with `rosbag record rosout /camera/color/image_raw robotiq_ft_wrench Robotiq2FGripperRobotInput /Robotiq2FGripperRobotOutput`
+
 ## Training
 As the docker container doesn't have CUDA support, this should be done outside the container.
 
