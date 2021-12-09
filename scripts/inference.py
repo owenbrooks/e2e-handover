@@ -50,8 +50,9 @@ obj_msg_to_enum = {
     3: ObjDetection.FINISHED_MOTION
 }
 
-GRAB_THRESHOLD = 8 # Newtons
-RELEASE_THRESHOLD = 8 # Newtons
+GRAB_THRESHOLD_FORCE = 8 # Newtons
+RELEASE_THRESHOLD_FORCE = 8 # Newtons
+MODEL_THRESHOLD = 0.5
 
 class InferenceNode():
     def __init__(self):
@@ -197,36 +198,19 @@ class InferenceNode():
 
             # forward + backward + optimize
             output_t = self.net(img_t, forces_t)
-            output = output_t.cpu().detach().numpy()
-
-            gripper_should_be_open = float(output[0]) > .5
-            self.model_output = output
-
-            # Open or close gripper based on current state and model output
-            if self.current_state == GripState.WAITING:
-                if not gripper_should_be_open:
-                    rospy.loginfo("Model says to grab. %s -> %s", self.current_state, GripState.GRABBING)
-                    self.current_state = GripState.GRABBING
-                    grip_cmd = close_gripper_msg()
-                    self.gripper_pub.publish(grip_cmd) # close gripper
-            elif self.current_state == GripState.HOLDING:
-                if gripper_should_be_open:
-                    rospy.loginfo("Model says to open. %s -> %s", self.current_state, GripState.RELEASING)
-                    self.current_state = GripState.RELEASING
-                    grip_cmd = open_gripper_msg()
-                    self.gripper_pub.publish(grip_cmd) # open gripper
+            self.model_output = output_t.cpu().detach().numpy()[0]
 
     def compute_next_state(self, force, toggle_key_pressed):
         next_state = self.current_state
 
         if self.current_state == GripState.HOLDING:
-            if force > RELEASE_THRESHOLD or toggle_key_pressed:
+            if force > RELEASE_THRESHOLD_FORCE or toggle_key_pressed or self.model_output > MODEL_THRESHOLD:
                 next_state = GripState.RELEASING
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
         elif self.current_state == GripState.WAITING:
-            if force > GRAB_THRESHOLD or toggle_key_pressed:
+            if force > GRAB_THRESHOLD_FORCE or toggle_key_pressed or self.model_output < MODEL_THRESHOLD:
                 next_state = GripState.GRABBING
                 # close gripper
                 grip_cmd = close_gripper_msg()
