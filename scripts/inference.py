@@ -68,6 +68,7 @@ class InferenceNode():
         self.current_state = GripState.WAITING
         self.obj_det_state = ObjDetection.GRIPPER_OFFLINE
         self.abs_z_force = 0.0
+        self.toggle_key_pressed = False
 
         self.is_recording = False
         self.is_inference_active = False
@@ -85,7 +86,7 @@ class InferenceNode():
             os.makedirs(data_dir)
 
         # Create network and load weights
-        model_name = rospy.get_param("model_name", default='2021-12-01-15:30:36.pt')
+        model_name = rospy.get_param("model_name", default='2021-12-09-04:56:05.pt')
         self.net = model.ResNet()
         current_dirname = os.path.dirname(__file__)
         model_path = os.path.join(current_dirname, '../models', model_name)
@@ -142,14 +143,7 @@ class InferenceNode():
             self.start_recording()
 
     def toggle_gripper(self):
-        if self.current_state == GripState.WAITING:
-            self.current_state = GripState.GRABBING
-            grip_cmd = close_gripper_msg()
-            self.gripper_pub.publish(grip_cmd) # close gripper
-        elif self.current_state == GripState.HOLDING:
-            self.current_state = GripState.RELEASING
-            grip_cmd = open_gripper_msg()
-            self.gripper_pub.publish(grip_cmd) # open gripper
+        self.toggle_key_pressed = True
 
     def joy_callback(self, joy_msg):
         recording_toggled = True # TODO: base off of joy msg
@@ -168,7 +162,7 @@ class InferenceNode():
             if char == 'i': # i key to start/stop inference controlling the gripper
                 self.is_inference_active = not self.is_inference_active
         except AttributeError: # special keys (ctrl, alt, etc.) will cause this exception
-            if key == keyboard.Key.shift: # space bar to open/close gripper
+            if key == keyboard.Key.shift or key == keyboard.Key.shift_r: # space bar to open/close gripper
                 self.toggle_gripper()
 
     def image_callback(self, image_msg):
@@ -211,26 +205,28 @@ class InferenceNode():
             # Open or close gripper based on current state and model output
             if self.current_state == GripState.WAITING:
                 if not gripper_should_be_open:
+                    rospy.loginfo("Model says to grab. %s -> %s", self.current_state, GripState.GRABBING)
                     self.current_state = GripState.GRABBING
                     grip_cmd = close_gripper_msg()
                     self.gripper_pub.publish(grip_cmd) # close gripper
             elif self.current_state == GripState.HOLDING:
                 if gripper_should_be_open:
+                    rospy.loginfo("Model says to open. %s -> %s", self.current_state, GripState.RELEASING)
                     self.current_state = GripState.RELEASING
                     grip_cmd = open_gripper_msg()
                     self.gripper_pub.publish(grip_cmd) # open gripper
 
-    def compute_next_state(self, force):
+    def compute_next_state(self, force, toggle_key_pressed):
         next_state = self.current_state
 
         if self.current_state == GripState.HOLDING:
-            if force > RELEASE_THRESHOLD:
+            if force > RELEASE_THRESHOLD or toggle_key_pressed:
                 next_state = GripState.RELEASING
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
         elif self.current_state == GripState.WAITING:
-            if force > GRAB_THRESHOLD:
+            if force > GRAB_THRESHOLD or toggle_key_pressed:
                 next_state = GripState.GRABBING
                 # close gripper
                 grip_cmd = close_gripper_msg()
@@ -253,9 +249,9 @@ class InferenceNode():
         rospy.loginfo("Running inference node")
         rate = rospy.Rate(10)
 
-        # while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-        #     rospy.loginfo("Waiting for gripper to connect")
-        #     rate.sleep()
+        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+            rospy.loginfo("Waiting for gripper to connect")
+            rate.sleep()
 
         # initialise the gripper
         grip_cmd = reset_gripper_msg()
@@ -271,7 +267,8 @@ class InferenceNode():
         key_listener.start()
         
         while not rospy.is_shutdown():
-            next_state = self.compute_next_state(self.abs_z_force)
+            next_state = self.compute_next_state(self.abs_z_force, self.toggle_key_pressed)
+            self.toggle_key_pressed = False
             if next_state != self.current_state:
                 print("" + str(self.current_state) + " -> " + str(next_state))
                 self.current_state = next_state
