@@ -12,7 +12,7 @@ import os
 import argparse
 import wandb
 
-# wandb.init(project="e2e-handover", entity="owenbrooks")
+wandb.init(project="e2e-handover", entity="owenbrooks")
 
 def main(args):
     session_id = args.session
@@ -24,7 +24,7 @@ def main(args):
     train_fraction = 0.8
     train_length = int(len(dataset)*train_fraction)
     test_length = len(dataset) - train_length
-    train_data, test_data = random_split(dataset, [train_length, test_length])
+    train_data, test_data = random_split(dataset, [train_length, test_length], generator=torch.Generator().manual_seed(42))
 
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, num_workers=args.num_workers)
@@ -61,7 +61,6 @@ def train(net, train_loader, test_loader, device, args):
         for i, data in enumerate(train_loader):
             # get the inputs
             img = torch.autograd.Variable(data[0]).to(device)
-            print(img.shape)
             forces = torch.autograd.Variable(data[1]).to(device)
             gripper_is_open = torch.autograd.Variable(data[2]).to(device)
 
@@ -85,8 +84,8 @@ def train(net, train_loader, test_loader, device, args):
         test_loss, test_accuracy = test(net, test_loader, criterion, device)
 
         # Log loss in weights and biases
-        # wandb.log({"train_loss": train_loss, "test_loss": test_loss})
-        # wandb.watch(net)
+        wandb.log({"train_loss": train_loss, "test_loss": test_loss})
+        wandb.watch(net)
 
         print("Train loss: %0.5f, test loss: %0.5f" % (train_loss, test_loss))
 
@@ -150,7 +149,7 @@ def test(net,test_loader,criterion, device):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--session', type=str, default="2021-12-01-15:30:36", help='session id of data to train on')
+    parser.add_argument('--session', type=str, default="2021-12-09-04:56:05", help='session id of data to train on')
 
     parser.add_argument('--log_step', type=int , default=10, help='step size for prining log info')
     parser.add_argument('--save_step', type=int , default=1000, help='step size for saving trained models')
@@ -162,5 +161,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     print(args)
-    # wandb.config.update(args)
+    wandb.config.update(args)
     main(args)
