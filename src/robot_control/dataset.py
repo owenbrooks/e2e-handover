@@ -9,7 +9,7 @@ class DeepHandoverDataset(Dataset):
     def __init__(self, session_id, transform=None, target_transform=None):
         current_dirname = os.path.dirname(__file__)
         data_dir = os.path.join(current_dirname, '../../data')
-        annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
+        annotations_file = os.path.join(data_dir, session_id, session_id + '_transition.csv')
         self.img_labels = pd.read_csv(annotations_file, sep=' ')
         self.session_id = session_id
         self.transform = transform
@@ -28,6 +28,7 @@ class DeepHandoverDataset(Dataset):
     def __getitem__(self, idx):
         current_dirname = os.path.dirname(__file__)
         data_dir = os.path.join(current_dirname, '../../data')
+        print(data_dir, self.session_id, self.img_labels.iloc[idx, 0])
         img_path = os.path.join(data_dir, self.session_id, self.img_labels.iloc[idx, 0])
         image = Image.open(img_path)
         label = self.img_labels.iloc[idx, 1]
@@ -47,6 +48,10 @@ class DeepHandoverDataset(Dataset):
             self.img_labels["gripper_is_open"][idx]
         ])
 
+        recent_transition_tensor = torch.Tensor([
+            self.img_labels["recent_transition"][idx]
+        ])
+
         if self.transform:
             image = self.transform(image)
         if self.target_transform:
@@ -57,7 +62,7 @@ class DeepHandoverDataset(Dataset):
         sample['force'] = force_tensor
         sample['gripper_is_open'] = gripper_state_tensor
 
-        return image_tensor, force_tensor, gripper_state_tensor
+        return image_tensor, force_tensor, gripper_state_tensor, recent_transition_tensor
 
 if __name__ == "__main__":
     data = DeepHandoverDataset("2021-12-01-15:30:36")
