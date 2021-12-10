@@ -12,8 +12,7 @@ class GripperAction(IntEnum):
     TriggerOpen=1
     TriggerClose=2
 
-def main(args):
-    session_id = args.session
+def trigger_only(session_id):
     current_dirname = os.path.dirname(__file__)
     data_dir = os.path.join(current_dirname, '../../data')
     annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
@@ -34,10 +33,13 @@ def main(args):
 
     df = pd.Series(action_list)
     print(df.value_counts())
-        
+
+def add_intent(session_id: str, lookback_frames: int):
+    pass        
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--session', default='2021-12-09-04:56:05', type=str)
     args = parser.parse_args()
-    main(args)
+    # trigger_only(args.session)
+    add_intent(args.session, 40)
