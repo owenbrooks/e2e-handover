@@ -27,7 +27,9 @@ def main(args):
         print("Using device: " + str(device))
         net.to(device)
 
-    for index, row in df.iterrows():
+    index = 0
+    while True:
+        row = df.iloc[index]
         image_path = os.path.join(data_dir, session_id, row['image_id'])
         img = cv2.imread(image_path)
 
@@ -52,8 +54,14 @@ def main(args):
         cv2.putText(img, model_state, (550, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
 
         cv2.imshow('Inference ', img)
-        if cv2.waitKey(0) & 0xFF == ord('q'):
+        
+        key = cv2.waitKey(0) & 0xFF
+        if key == ord('q'):
             break
+        elif key == ord('d'):
+            index = (index + 1) % len(df)
+        elif key == ord('a'):
+            index = (index - 1) % len(df)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
