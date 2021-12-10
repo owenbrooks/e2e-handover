@@ -12,7 +12,7 @@ Data is stored in the `data` directory.
 
 Pressing 'r' begins or ends a recording session, identified by a timestamp. Images and a csv file for each session are stored in a folder. Pressing 'shift' toggles the gripper state manually.
 
-`roslaunch robot_control recording.launch`
+`roslaunch robot_control inference.launch`
 
 Optionally, record the raw ROS messages with `rosbag record rosout /camera/color/image_raw robotiq_ft_wrench Robotiq2FGripperRobotInput /Robotiq2FGripperRobotOutput`
 

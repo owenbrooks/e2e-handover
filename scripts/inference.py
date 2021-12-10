@@ -18,7 +18,7 @@ from robot_control import model
 import torch
 from robot_control.image_ops import prepare_image
 
-# Node to record data
+# Node to record data and perform inference given a trained model
 # Launch node, gripper opens
 # Give object to arm (triggered by force threshold)
 # Can take object from arm if needed (triggered by force threshold)
