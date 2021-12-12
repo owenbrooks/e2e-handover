@@ -40,9 +40,11 @@ def main(args):
         img_t = prepare_image(img).unsqueeze_(0).to(device)
         wrench_array = row[['fx', 'fy', 'fz', 'mx', 'my', 'mz']].values.astype(np.float32)
         forces_t = torch.autograd.Variable(torch.FloatTensor(wrench_array)).unsqueeze_(0).to(device)
+        recent_transition_t = torch.Tensor(np.array([row['recent_transition']], dtype=bool)).unsqueeze(0).to(device)
+        # print(row['recent_transition'])
 
         # forward + backward + optimize
-        output_t = net(img_t, forces_t)
+        output_t = net(img_t, forces_t, recent_transition_t)
         model_output = output_t.cpu().detach().numpy()[0][0]
         model_open = model_output > 0.5
 
@@ -54,7 +56,7 @@ def main(args):
         cv2.putText(img, model_state, (550, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
 
         cv2.imshow('Inference ', img)
-        
+
         key = cv2.waitKey(0) & 0xFF
         if key == ord('q'):
             break

@@ -66,7 +66,7 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.conv2 = nn.Conv2d(512,16,kernel_size=1, stride=1)
         self.bn2 = nn.BatchNorm2d(16)
-        self.fc1 = nn.Linear(16 * 7 * 7 * block.expansion + 6, 256)
+        self.fc1 = nn.Linear(16 * 7 * 7 * block.expansion + 7, 256) # 6 force/torque floats + 1 recent_transition bool
         self.fc2 = nn.Linear(256, 128)
         self.fc3 = nn.Linear(128, 64)
         self.fc4 = nn.Linear(64, 1)
@@ -94,7 +94,7 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, img, forces):
+    def forward(self, img, forces, recent_transition):
         x = self.bn0(img)
         x = self.conv1(x)
         x = self.bn1(x)
@@ -114,7 +114,8 @@ class ResNet(nn.Module):
 
         # print(x.shape)
         # print(forces.shape)
-        x = torch.cat((x,forces),dim=1)
+        x = torch.cat((x, forces), dim=1)
+        x = torch.cat((x, recent_transition), dim=1)
 
         x = self.fc1(x)
         x = self.relu(x)

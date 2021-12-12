@@ -63,12 +63,13 @@ def train(net, train_loader, test_loader, device, args):
             img = torch.autograd.Variable(data[0]).to(device)
             forces = torch.autograd.Variable(data[1]).to(device)
             gripper_is_open = torch.autograd.Variable(data[2]).to(device)
+            recent_transition = torch.autograd.Variable(data[3]).to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            outputs = net(img, forces)
+            outputs = net(img, forces, recent_transition)
             loss = criterion(outputs, gripper_is_open)
 
             loss.backward()
@@ -106,8 +107,9 @@ def log_predictions(net, test_loader, device):
         img = torch.autograd.Variable(data[0]).to(device)
         forces = torch.autograd.Variable(data[1]).to(device)
         gripper_is_open = torch.autograd.Variable(data[2]).to(device)[0][0]
+        recent_transition = torch.autograd.Variable(data[3]).to(device)
 
-        guess_label = net(img, forces)[0][0]
+        guess_label = net(img, forces, recent_transition)[0][0]
         test_table.add_data(img_id, wandb.Image(img), \
                             guess_label, gripper_is_open)
 
@@ -124,9 +126,10 @@ def test(net,test_loader,criterion, device):
         img = torch.autograd.Variable(data[0]).to(device)
         forces = torch.autograd.Variable(data[1]).to(device)
         labels = torch.autograd.Variable(data[2]).to(device)
+        recent_transition = torch.autograd.Variable(data[3]).to(device)
 
         # forward + backward + optimize
-        outputs = net(img,forces)
+        outputs = net(img, forces, recent_transition)
         loss = criterion(outputs, labels)
 
         output_thresh = outputs.cpu().data.numpy() > 0.5
