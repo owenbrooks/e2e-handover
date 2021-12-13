@@ -2,17 +2,13 @@
 from dataset import DeepHandoverDataset
 import torch
 import torch.nn as nn
-import model
+from model import ResNet
 import torch.optim as optim
-import random
-# import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import random_split 
 import os
 import argparse
 import wandb
-
-wandb.init(project="e2e-handover", entity="owenbrooks")
 
 def main(args):
     session_id = args.session
@@ -30,20 +26,20 @@ def main(args):
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, num_workers=args.num_workers)
 
     # Load pre-trained resnet18 model weights
-    net = model.ResNet()
+    model = ResNet()
     resnet18_url = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
     state_dict = torch.hub.load_state_dict_from_url(resnet18_url)
-    net.load_partial_state_dict(state_dict)
+    model.load_partial_state_dict(state_dict)
 
     # Set device to GPU if available, otherwise CPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Using device: " + str(device))
-    net.to(device)
+    model.to(device)
 
-    train(net, train_loader, test_loader, device, args)
+    train(model, train_loader, test_loader, device, args)
 
-def train(net, train_loader, test_loader, device, args):
-    net.train()
+def train(model, train_loader, test_loader, device, args):
+    model.train()
 
     # Create directory and path for saving model
     current_dirname = os.path.dirname(__file__)
@@ -55,20 +51,21 @@ def train(net, train_loader, test_loader, device, args):
     criterion = nn.BCELoss()
 
     # Training loop
-    optimizer = optim.SGD(net.parameters(), lr=args.learning_rate, momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
     for epoch in range(args.num_epochs):
         running_loss = 0.0
+        model.train()
         for i, data in enumerate(train_loader):
             # get the inputs
-            img = torch.autograd.Variable(data[0]).to(device)
-            forces = torch.autograd.Variable(data[1]).to(device)
-            gripper_is_open = torch.autograd.Variable(data[2]).to(device)
+            img = torch.Tensor(data[0]).to(device)
+            forces = torch.Tensor(data[1]).to(device)
+            gripper_is_open = torch.Tensor(data[2]).to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            outputs = net(img, forces)
+            outputs = model(img, forces)
             loss = criterion(outputs, gripper_is_open)
 
             loss.backward()
@@ -81,20 +78,20 @@ def train(net, train_loader, test_loader, device, args):
                 print('Epoch %d. batch loss: %0.5f' %(epoch + 1, loss.data))
 
         train_loss = running_loss / len(train_loader)
-        test_loss, test_accuracy = test(net, test_loader, criterion, device)
+        test_loss, test_accuracy = test(model, test_loader, criterion, device)
 
         # Log loss in weights and biases
-        wandb.log({"train_loss": train_loss, "test_loss": test_loss})
-        wandb.watch(net)
+        wandb.log({"train_loss": train_loss, "test_loss": test_loss, 'test_acc': test_accuracy})
+        wandb.watch(model)
 
         print("Train loss: %0.5f, test loss: %0.5f" % (train_loss, test_loss))
 
-        torch.save(net.state_dict(), model_path)
+        torch.save(model.state_dict(), model_path)
 
-    log_predictions(net, test_loader, device)
+    log_predictions(model, test_loader, device)
     print('Finished training')
 
-def log_predictions(net, test_loader, device):
+def log_predictions(model, test_loader, device):
     # create a Table with the same columns as above,
     # plus confidence scores for all labels
     columns=["id", "image", "guess", "truth"]
@@ -102,44 +99,50 @@ def log_predictions(net, test_loader, device):
 
     # run inference on every image, assuming my_model returns the
     # predicted label, and the ground truth labels are available
-    for img_id, data in enumerate(test_loader):
-        img = torch.autograd.Variable(data[0]).to(device)
-        forces = torch.autograd.Variable(data[1]).to(device)
-        gripper_is_open = torch.autograd.Variable(data[2]).to(device)[0][0]
+    model.eval()
 
-        guess_label = net(img, forces)[0][0]
-        test_table.add_data(img_id, wandb.Image(img), \
-                            guess_label, gripper_is_open)
+    with torch.no_grad:
+        for img_id, data in enumerate(test_loader):
+            img = torch.Tensor(data[0]).to(device)
+            forces = torch.Tensor(data[1]).to(device)
+            gripper_is_open = torch.Tensor(data[2]).to(device)[0][0]
+
+            guess_label = model(img, forces)[0][0]
+            test_table.add_data(img_id, wandb.Image(img), \
+                                guess_label, gripper_is_open)
 
     wandb.log({"table_key": test_table})
 
 
-def test(net,test_loader,criterion, device):
+def test(model, test_loader, criterion, device):
     running_loss = 0.0
     running_correct = 0
     running_total = 0
+
+    model.eval()
     
-    for i, data in enumerate(test_loader, 0):
-        # get the inputs
-        img = torch.autograd.Variable(data[0]).to(device)
-        forces = torch.autograd.Variable(data[1]).to(device)
-        labels = torch.autograd.Variable(data[2]).to(device)
+    with torch.no_grad():
+        for i, data in enumerate(test_loader, 0):
+            # get the inputs
+            img = torch.Tensor(data[0]).to(device)
+            forces = torch.Tensor(data[1]).to(device)
+            labels = torch.Tensor(data[2]).to(device)
 
-        # forward + backward + optimize
-        outputs = net(img,forces)
-        loss = criterion(outputs, labels)
+            # forward + backward + optimize
+            outputs = model(img, forces)
+            loss = criterion(outputs, labels)
 
-        output_thresh = outputs.cpu().data.numpy() > 0.5
+            output_thresh = outputs.cpu().data.numpy() > 0.5
 
-        correct = output_thresh == labels.cpu().data.numpy()
-        # print(correct)
-        correct_sum = np.sum(correct)
+            correct = output_thresh == labels.cpu().data.numpy()
+            # print(correct)
+            correct_sum = np.sum(correct)
 
-        running_correct += correct_sum
-        running_total = running_total + len(output_thresh)
+            running_correct += correct_sum
+            running_total = running_total + len(output_thresh)
 
-        # print statistics
-        running_loss += float(loss.data)
+            # print statistics
+            running_loss += float(loss.data)
 
     test_loss = running_loss / len(test_loader)
     test_accuracy = running_correct / float(running_total)
@@ -161,5 +164,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     print(args)
+    wandb.init(project="e2e-handover", entity="owenbrooks")
     wandb.config.update(args)
     main(args)
