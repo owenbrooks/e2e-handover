@@ -28,7 +28,7 @@ class DeepHandoverDataset(Dataset):
     def __getitem__(self, idx):
         current_dirname = os.path.dirname(__file__)
         data_dir = os.path.join(current_dirname, '../../data')
-        img_path = os.path.join(data_dir, self.session_id, self.img_labels.iloc[idx, 0])
+        img_path = os.path.join(data_dir, self.session_id, 'images', self.img_labels.iloc[idx, 0])
         image = Image.open(img_path)
         label = self.img_labels.iloc[idx, 1]
 

@@ -30,7 +30,7 @@ def main(args):
     index = 0
     while True:
         row = df.iloc[index]
-        image_path = os.path.join(data_dir, session_id, row['image_id'])
+        image_path = os.path.join(data_dir, session_id, 'images', row['image_id'])
         img = cv2.imread(image_path)
 
         image_number_string = str(index) + '/' + str(len(df.index))

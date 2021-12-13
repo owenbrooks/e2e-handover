@@ -88,7 +88,6 @@ class InferenceNode():
         # Create network and load weights
         model_name = rospy.get_param("model_name", default='2021-12-09-04:56:05.pt')
         self.net = model.ResNet()
-        current_dirname = os.path.dirname(__file__)
         model_path = os.path.join(current_dirname, '../models', model_name)
         self.net.load_state_dict(torch.load(model_path))
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -115,11 +114,10 @@ class InferenceNode():
             # Create folder for storing recorded images and the session csv
             self.session_id = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
             current_dirname = os.path.dirname(__file__)
-            session_dir = os.path.join(current_dirname, '../data', self.session_id)
+            session_dir = os.path.join(current_dirname, '../data', self.session_id, 'images')
             os.makedirs(session_dir)
             # Create csv file for recording numerical data and annotation in the current session
-            current_dirname = os.path.dirname(__file__)
-            fname = os.path.join(current_dirname, '../data', self.session_id, self.session_id + '.csv')
+            fname = os.path.join(session_dir, self.session_id + '.csv')
             with open(fname, 'w+') as csvfile:
                 datawriter = csv.writer(csvfile, delimiter=' ',
                                         quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -169,12 +167,12 @@ class InferenceNode():
         if self.is_recording:
             gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
 
-            current_dirname = os.path.dirname(__file__)
 
             # Save image as png
-            image_name = str(self.session_image_count) + '_' + self.session_id + '.png'
+            current_dirname = os.path.dirname(__file__)
+            image_name = str(self.session_image_count) + '.png'
             self.session_image_count += 1
-            image_path = os.path.join(current_dirname, '../data', self.session_id, image_name)
+            image_path = os.path.join(current_dirname, '../data', self.session_id, 'images', image_name)
             try:
                 cv2_img = self.cv_bridge.imgmsg_to_cv2(image_msg, "bgr8")
             except CvBridgeError as e:
