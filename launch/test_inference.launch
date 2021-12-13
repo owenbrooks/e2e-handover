@@ -7,5 +7,6 @@
     <param name="serial_id" value="ttyUSB1" />
   </node>
   <node name="Robotiq2FGripperRtuNode" pkg="robotiq_2f_gripper_control" type="Robotiq2FGripperRtuNode.py" args="/dev/ttyUSB0" output="screen"/>
+  <node name="joy" pkg="joy" type="joy_node" output="screen"/>
   <node name="image_publisher" pkg="image_publisher" type="image_publisher" args="$(find robot_control)/data/test.png" output="screen"/>
 </launch>

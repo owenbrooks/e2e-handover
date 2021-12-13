@@ -144,12 +144,14 @@ class InferenceNode():
         self.toggle_key_pressed = True
 
     def joy_callback(self, joy_msg):
-        recording_toggled = True # TODO: base off of joy msg
-        if recording_toggled:
+        share_pressed = joy_msg.buttons[8]
+        down_pressed = joy_msg.axes[7] == -1
+        x_pressed = joy_msg.buttons[0] == 1
+
+        if share_pressed:
             self.toggle_recording()
 
-        gripper_toggled = True # TODO: base off of joy msg
-        if gripper_toggled:
+        if down_pressed or x_pressed:
             self.toggle_gripper()
 
     def on_key_press(self, key):
