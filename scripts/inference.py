@@ -118,8 +118,9 @@ class InferenceNode():
             # Create folder for storing recorded images and the session csv
             self.session_id = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
             current_dirname = os.path.dirname(__file__)
-            session_dir = os.path.join(current_dirname, '../data', self.session_id, 'images')
-            os.makedirs(session_dir)
+            session_dir = os.path.join(current_dirname, '../data', self.session_id)
+            image_dir = os.path.join(session_dir, 'images')
+            os.makedirs(image_dir)
             # Create csv file for recording numerical data and annotation in the current session
             fname = os.path.join(session_dir, self.session_id + '.csv')
             with open(fname, 'w+') as csvfile:
@@ -236,9 +237,9 @@ class InferenceNode():
         rospy.loginfo("Running inference node")
         rate = rospy.Rate(10)
 
-        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-            rospy.loginfo("Waiting for gripper to connect")
-            rate.sleep()
+        # while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+        #     rospy.loginfo("Waiting for gripper to connect")
+        #     rate.sleep()
 
         # initialise the gripper
         grip_cmd = reset_gripper_msg()
