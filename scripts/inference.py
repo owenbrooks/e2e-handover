@@ -176,7 +176,7 @@ class InferenceNode():
 
             # Save image as png
             current_dirname = os.path.dirname(__file__)
-            image_name = str(self.session_image_count) + '.png'
+            image_name = str(self.session_image_count) + '_' + self.session_id + '.png'
             self.session_image_count += 1
             image_path = os.path.join(current_dirname, '../data', self.session_id, 'images', image_name)
             try:
