@@ -163,6 +163,7 @@ include_directories(
 catkin_install_python(PROGRAMS
   scripts/force_baseline.py
   scripts/inference.py
+  scripts/joystick_twist.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
