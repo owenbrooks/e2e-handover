@@ -89,10 +89,14 @@ class InferenceNode():
         model_name = rospy.get_param("model_name", default='2021-12-09-04:56:05.pt')
         self.net = model.ResNet()
         model_path = os.path.join(current_dirname, '../models', model_name)
-        self.net.load_state_dict(torch.load(model_path))
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        rospy.loginfo("Using device: " + str(self.device))
-        self.net.to(self.device)
+        if os.path.isfile(model_path):
+            self.net.load_state_dict(torch.load(model_path))
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            rospy.loginfo("Using device: " + str(self.device))
+            self.net.to(self.device)
+        else:
+            self.net = None
+            rospy.logwarn(f"Unable to load model at {model_path}")
 
         self.model_output = NaN
 
@@ -188,7 +192,7 @@ class InferenceNode():
                 datawriter = csv.writer(csvfile, delimiter=' ')
                 datawriter.writerow([image_name, gripper_is_open] + self.wrench_array)
         
-        if self.is_inference_active:
+        if self.is_inference_active and self.net is not None:
             gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
             
             img_cv2 = self.cv_bridge.imgmsg_to_cv2(image_msg, "bgr8")
