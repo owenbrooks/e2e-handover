@@ -8,7 +8,7 @@ from robot_control.image_ops import prepare_image
 import torch
 
 def main(args):
-    session_id = '2021-12-09-04:56:05'
+    session_id = '2021-12-15-02:41:15'
     current_dirname = os.path.dirname(__file__)
     data_dir = os.path.join(current_dirname, '../../data')
     annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
@@ -18,7 +18,7 @@ def main(args):
 
     if not args.ground_truth:
         # Create network and load weights
-        model_name = session_id + '.pt'
+        model_name = '2021-12-14-23.pt'
         net = model.ResNet()
         current_dirname = os.path.dirname(__file__)
         model_path = os.path.join(current_dirname, '../../models', model_name)
