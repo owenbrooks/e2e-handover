@@ -49,8 +49,8 @@ obj_msg_to_enum = {
     3: ObjDetection.FINISHED_MOTION
 }
 
-GRAB_THRESHOLD_FORCE = 8 # Newtons
-RELEASE_THRESHOLD_FORCE = 8 # Newtons
+GRAB_THRESHOLD_FORCE = 20 # Newtons
+RELEASE_THRESHOLD_FORCE = 20 # Newtons
 MODEL_THRESHOLD = 0.5
 
 class InferenceNode():
@@ -237,16 +237,15 @@ class InferenceNode():
         rospy.loginfo("Running inference node")
         rate = rospy.Rate(10)
 
-        # while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-        #     rospy.loginfo("Waiting for gripper to connect")
-        #     rate.sleep()
+        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+            rospy.loginfo("Waiting for gripper to connect")
+            rate.sleep()
 
-        # initialise the gripper
+        # initialise the gripper via reset and activate messages
         grip_cmd = reset_gripper_msg()
         self.gripper_pub.publish(grip_cmd)
-
-        # open the gripper to start
-        grip_cmd = open_gripper_msg()
+        rospy.sleep(0.1)
+        grip_cmd = activate_gripper_msg()
         self.gripper_pub.publish(grip_cmd)
 
         # keyboard input

@@ -59,7 +59,7 @@ Install additional dependencies by running `rosdep install --from-paths src --ig
 
 # Miscellaneous commands for reference
 Bring up communication with the robot:
-`roslaunch ur_robot_driver ur5_bringup.launch robot_ip:=IP_OF_THE_ROBOT`
+`roslaunch ur_robot_driver ur5_bringup.launch robot_ip:=10.0.0.2`
 
 Viewing the robot urdf:
 `roslaunch robot_control view_ur5_ft_grip_table.launch`

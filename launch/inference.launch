@@ -7,7 +7,6 @@
   <node name="Robotiq2FGripperRtuNode" pkg="robotiq_2f_gripper_control" type="Robotiq2FGripperRtuNode.py" args="/dev/ttyUSB0" output="screen"/>
   <node name="joy" pkg="joy" type="joy_node" output="screen"/>
   <include file="$(find realsense2_camera)/launch/rs_camera.launch" pass_all_args="true"/>
-  <node name="joy" pkg="joy" type="joy_node" output="screen"/>
   <!-- <node name="joystick_twist" pkg="robot_control" type="joystick_twist.py" output="screen"/>
   <node name="twist_filter" pkg="robot_control" type="twist_filter.py" output="screen"/> -->
 </launch>
