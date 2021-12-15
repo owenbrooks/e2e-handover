@@ -7,6 +7,7 @@ RUN apt-get -y update && apt-get install -y \
     python3-vcstool \
     build-essential \
     libnvidia-gl-470 \
+    libcanberra-gtk3-module \
     vim \
     nano \
     git \
@@ -27,6 +28,8 @@ RUN vcs import < ${SOURCE_DIR}/e2e.rosinstall
 COPY ./package.xml ${SOURCE_DIR}/package.xml
 WORKDIR ${CATKIN_WS}
 RUN apt-get -y update && rosdep update && rosdep install --from-paths src --ignore-src -r -y
+
+RUN pip install wandb
 
 # Build the project
 COPY . ${SOURCE_DIR}
