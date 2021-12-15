@@ -197,7 +197,8 @@ class InferenceNode():
                 datawriter.writerow([image_name, gripper_is_open] + self.wrench_array)
         
         if self.is_inference_active and self.net is not None:
-            img_cv2 = self.cv_bridge.imgmsg_to_cv2(image_msg, "bgr8")
+            img_cv2 = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
+            img_cv2 = img_cv2[:, :, ::-1]
             img_t = prepare_image(img_cv2).unsqueeze_(0).to(self.device)
             forces_t = torch.autograd.Variable(torch.FloatTensor(self.wrench_array)).unsqueeze_(0).to(self.device)
 
