@@ -7,15 +7,9 @@ from robot_control import model
 from robot_control.image_ops import prepare_image
 import torch
 
-import matplotlib.pyplot as plt
-import torchvision.models as models
-
-from flashtorch.utils import apply_transforms, load_image
-from flashtorch.saliency import Backprop
-
 def main(args):
     # session_id = '2021-12-14-23'
-    session_id = '2021-12-15-02:41:15'
+    session_id = '2021-12-15-23:06:16'
     current_dirname = os.path.dirname(__file__)
     data_dir = os.path.join(current_dirname, '../../data')
     annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
@@ -35,8 +29,6 @@ def main(args):
         net.to(device)
         net.eval()
 
-    # backprop = Backprop(net)
-
     index = 307
     while True:
         row = df.iloc[index]
@@ -48,7 +40,6 @@ def main(args):
 
 
         img_t = prepare_image(img).unsqueeze_(0).to(device)
-        # img_t.requires_grad_(True)
         wrench_array = row[['fx', 'fy', 'fz', 'mx', 'my', 'mz']].values.astype(np.float32)
         forces_t = torch.autograd.Variable(torch.FloatTensor(wrench_array)).unsqueeze_(0).to(device)
 

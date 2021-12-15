@@ -88,7 +88,7 @@ class InferenceNode():
         # Create network and load weights
         # model_name = rospy.get_param("model_name", default='2021-12-09-04:56:05.pt')
         model_name = rospy.get_param("model_name", default='2021-12-14-23.pt')
-        rospy.loginfo(model_name)
+        rospy.loginfo(f"Using model: {model_name}")
         self.net = model.ResNet()
         model_path = os.path.join(current_dirname, '../models', model_name)
         if os.path.isfile(model_path):
