@@ -64,6 +64,7 @@ class InferenceNode():
         self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
 
         self.cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images
+        self.background_subtractor = cv2.createBackgroundSubtractorMOG2()
 
         self.current_state = GripState.WAITING
         self.obj_det_state = ObjDetection.GRIPPER_OFFLINE
@@ -185,7 +186,6 @@ class InferenceNode():
         if self.is_recording:
             gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
 
-
             # Save image as png
             current_dirname = os.path.dirname(__file__)
             image_name = str(self.session_image_count) + '_' + self.session_id + '.png'
@@ -207,7 +207,9 @@ class InferenceNode():
         if self.is_inference_active and self.net is not None:
             img_cv2 = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
             img_cv2 = img_cv2[:, :, ::-1]
-            img_t = prepare_image(img_cv2).unsqueeze_(0).to(self.device)
+            foreground_mask = self.background_subtractor.apply(img_cv2)
+            img_foreground = img_cv2[foreground_mask]
+            img_t = prepare_image(img_foreground).unsqueeze_(0).to(self.device)
             forces_t = torch.autograd.Variable(torch.FloatTensor(self.wrench_array)).unsqueeze_(0).to(self.device)
 
             # forward + backward + optimize
