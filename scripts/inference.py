@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os
 import csv
-
+import numpy as np
 from numpy.core.numeric import NaN
 import rospy
 from geometry_msgs.msg import WrenchStamped
@@ -76,8 +76,8 @@ class InferenceNode():
 
         self.session_image_count = 0
 
-        self.wrench_array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] # [fx, fy, fz, mx, my, mz]
-        self.base_wrench_array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] # used to "calibrate" the force sensor since it gives different readings at different times
+        self.wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # [fx, fy, fz, mx, my, mz]
+        self.base_wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # used to "calibrate" the force sensor since it gives different readings at different times
 
         # Create folder for storing recorded images and the csv with numerical/annotation data
         current_dirname = os.path.dirname(__file__)
@@ -88,7 +88,7 @@ class InferenceNode():
 
         # Create network and load weights
         # model_name = rospy.get_param("model_name", default='2021-12-09-04:56:05.pt')
-        model_name = rospy.get_param("model_name", default='2021-12-14-23.pt')
+        model_name = rospy.get_param("model_name", default='2021-12-14-23_calib.pt')
         rospy.loginfo(f"Using model: {model_name}")
         self.net = model.ResNet()
         model_path = os.path.join(current_dirname, '../models', model_name)
@@ -107,8 +107,8 @@ class InferenceNode():
     def force_callback(self, wrench_msg):
         self.abs_z_force = abs(wrench_msg.wrench.force.z)
 
-        wrench_reading = [wrench_msg.wrench.force.x, wrench_msg.wrench.force.y, wrench_msg.wrench.force.z, 
-            wrench_msg.wrench.torque.x, wrench_msg.wrench.torque.y, wrench_msg.wrench.torque.z]
+        wrench_reading = np.array([wrench_msg.wrench.force.x, wrench_msg.wrench.force.y, wrench_msg.wrench.force.z, 
+            wrench_msg.wrench.torque.x, wrench_msg.wrench.torque.y, wrench_msg.wrench.torque.z])
 
         # Subtracts a previous wrench reading to act as a kind of calibration
         self.wrench_array = wrench_reading - self.base_wrench_array
@@ -202,8 +202,8 @@ class InferenceNode():
             csv_path = os.path.join(current_dirname, '../data', self.session_id, self.session_id + '.csv')
             with open(csv_path, 'a+') as csvfile:
                 datawriter = csv.writer(csvfile, delimiter=' ')
-                datawriter.writerow([image_name, gripper_is_open] + self.wrench_array)
-        
+                datawriter.writerow([image_name, gripper_is_open] + self.wrench_array.tolist())
+
         if self.is_inference_active and self.net is not None:
             img_cv2 = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
             img_cv2 = img_cv2[:, :, ::-1]
