@@ -9,11 +9,10 @@ import pandas as pd
 
 class GripperAction(IntEnum):
     DoNothing=0
-    TriggerOpen=1
-    TriggerClose=2
+    TriggerClose=1
+    TriggerOpen=2
 
-def main(args):
-    session_id = args.session
+def transition_count(session_id: str):
     current_dirname = os.path.dirname(__file__)
     data_dir = os.path.join(current_dirname, '../../data')
     annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
@@ -30,14 +29,36 @@ def main(args):
         else:
             action = GripperAction.DoNothing
         action_list.append(int(action))
-    # print(action_list)
 
     df = pd.Series(action_list)
     print(df.value_counts())
-        
+
+def calibrate_forces(session_id: str, static_index: int):
+    """ Subtracts the force-torque value at static_index from all the rest to serve as calibration 
+    since the force readings seem to change over the day, potentially when the robot is 
+    rebooted. """
+    current_dirname = os.path.dirname(__file__)
+    data_dir = os.path.join(current_dirname, '../../data')
+    annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
+    df = pd.read_csv(annotations_file, sep=' ')
+    
+    baseline_force = df.iloc[static_index][["fx", "fy", "fz", "mx", "my", "mz"]]
+    df[["fx", "fy", "fz", "mx", "my", "mz"]] -= baseline_force
+
+    calib_annotations_file = os.path.join(data_dir, session_id, session_id + '_calib' + '.csv')
+    df.to_csv(calib_annotations_file, sep=' ', index=False)
+    print(f"Calibrated force readings for {calib_annotations_file}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--session', default='2021-12-09-04:56:05', type=str)
+    parser.add_argument('--session', type=str)
+    parser.add_argument('--static-index', default=0, type=int)
+    parser.add_argument('--tcount', action='store_true')
+    parser.add_argument('--calibf', action='store_true')
     args = parser.parse_args()
-    main(args)
+
+    if args.tcount:
+        transition_count(args.session)
+
+    if args.calibf:
+        calibrate_forces(args.session, args.static_index)
