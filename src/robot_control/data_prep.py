@@ -90,7 +90,7 @@ def subtract_background(session_id: str):
     csv_copy_path = os.path.join(data_dir, session_id + '_subtracted', session_id + '_subtracted.csv')
     df.to_csv(csv_copy_path, sep=' ', index=False)
 
-    background_subtractor = cv2.createBackgroundSubtractorMOG2()
+    background_subtractor = cv2.BackgroundSubtractor()
 
     for i in range(len(df)):
         orig_image_path = os.path.join(orig_image_dir, df.iloc[i]['image_id'])
