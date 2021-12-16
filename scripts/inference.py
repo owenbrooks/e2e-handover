@@ -76,7 +76,8 @@ class InferenceNode():
 
         self.session_image_count = 0
 
-        self.wrench_array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.wrench_array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] # [fx, fy, fz, mx, my, mz]
+        self.base_wrench_array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] # used to "calibrate" the force sensor since it gives different readings at different times
 
         # Create folder for storing recorded images and the csv with numerical/annotation data
         current_dirname = os.path.dirname(__file__)
@@ -106,8 +107,15 @@ class InferenceNode():
     def force_callback(self, wrench_msg):
         self.abs_z_force = abs(wrench_msg.wrench.force.z)
 
-        self.wrench_array = [wrench_msg.wrench.force.x, wrench_msg.wrench.force.y, wrench_msg.wrench.force.z, 
+        wrench_reading = [wrench_msg.wrench.force.x, wrench_msg.wrench.force.y, wrench_msg.wrench.force.z, 
             wrench_msg.wrench.torque.x, wrench_msg.wrench.torque.y, wrench_msg.wrench.torque.z]
+
+        # Subtracts a previous wrench reading to act as a kind of calibration
+        self.wrench_array = wrench_reading - self.base_wrench_array
+
+        # Continuously calibrates the force sensor unless inference is activated
+        if not self.is_inference_active:
+            self.base_wrench_array = wrench_reading
     
     def gripper_state_callback(self, gripper_input_msg):
         self.obj_det_state = obj_msg_to_enum[gripper_input_msg.gOBJ]
