@@ -213,8 +213,6 @@ class InferenceNode():
             # forward + backward + optimize
             output_t = self.net(img_t, forces_t)
             self.model_output = output_t.cpu().detach().numpy()[0][0]
-            if self.model_output < 0.5:
-                rospy.logerr(self.model_output)
 
     def compute_next_state(self, force, toggle_key_pressed):
         next_state = self.current_state
