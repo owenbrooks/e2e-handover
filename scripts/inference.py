@@ -1,21 +1,23 @@
 #!/usr/bin/env python
-import os
 import csv
+import cv2
+from cv_bridge import CvBridge, CvBridgeError
+from datetime import datetime
+from enum import Enum
+from geometry_msgs.msg import WrenchStamped
 import numpy as np
 from numpy.core.numeric import NaN
-import rospy
-from geometry_msgs.msg import WrenchStamped
-from sensor_msgs.msg import Joy, Image
-from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
-from enum import Enum
-from robot_control.gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
-from datetime import datetime
-from cv_bridge import CvBridge, CvBridgeError
-import cv2
+import os
 from pynput import keyboard
+from papillarray_ros_v2.msg import SensorState
+from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
+from robot_control.gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
 from robot_control import model
-import torch
 from robot_control.image_ops import prepare_image
+from robot_control import tactile
+import rospy
+from sensor_msgs.msg import Joy, Image
+import torch
 
 # Node to record data and perform inference given a trained model
 # Launch node, gripper opens
@@ -62,6 +64,7 @@ class InferenceNode():
         self.image_sub = rospy.Subscriber('/camera/color/image_raw', Image, self.image_callback)
         self.joy_sub = rospy.Subscriber('joy', Joy, self.joy_callback) # joystick control
         self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
+        self.tactile_sub = rospy.Subscriber('/hub_0/sensor_0', SensorState, self.tactile_callback)
 
         self.cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images
 
@@ -78,6 +81,7 @@ class InferenceNode():
 
         self.wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # [fx, fy, fz, mx, my, mz]
         self.base_wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # used to "calibrate" the force sensor since it gives different readings at different times
+        self.tactile_readings = [0.0]*(6+9*6) # 6 global readings plus 6 for each pillar
 
         # Create folder for storing recorded images and the csv with numerical/annotation data
         current_dirname = os.path.dirname(__file__)
@@ -116,6 +120,10 @@ class InferenceNode():
         # Continuously calibrates the force sensor unless inference is activated
         if not self.is_inference_active:
             self.base_wrench_array = wrench_reading
+
+    def tactile_callback(self, sensor_msg):
+        value_list = tactile.sensor_state_to_list(sensor_msg)
+        self.tactile_readings = value_list
     
     def gripper_state_callback(self, gripper_input_msg):
         self.obj_det_state = obj_msg_to_enum[gripper_input_msg.gOBJ]
@@ -137,7 +145,7 @@ class InferenceNode():
             with open(fname, 'w+') as csvfile:
                 datawriter = csv.writer(csvfile, delimiter=' ',
                                         quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                header = ['image_id', 'gripper_is_open', 'fx', 'fy', 'fz', 'mx', 'my', 'mz']
+                header = ['image_id', 'gripper_is_open', 'fx', 'fy', 'fz', 'mx', 'my', 'mz'] + tactile.papillarray_keys
                 datawriter.writerow(header)
 
             rospy.loginfo("Started recording. Session: " + self.session_id)
@@ -202,7 +210,7 @@ class InferenceNode():
             csv_path = os.path.join(current_dirname, '../data', self.session_id, self.session_id + '.csv')
             with open(csv_path, 'a+') as csvfile:
                 datawriter = csv.writer(csvfile, delimiter=' ')
-                datawriter.writerow([image_name, gripper_is_open] + self.wrench_array.tolist())
+                datawriter.writerow([image_name, gripper_is_open] + self.wrench_array.tolist() + self.tactile_readings)
 
         if self.is_inference_active and self.net is not None:
             img_cv2 = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
