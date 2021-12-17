@@ -4,6 +4,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 import torch
+from robot_control import tactile
 
 class DeepHandoverDataset(Dataset):
     def __init__(self, session_id, transform=None, target_transform=None):
@@ -47,6 +48,10 @@ class DeepHandoverDataset(Dataset):
             self.img_labels["gripper_is_open"][idx]
         ])
 
+        tactile_readings_tensor = torch.Tensor([
+            self.img_labels.iloc[idx][tactile.papillarray_keys]
+        ])
+
         if self.transform:
             image = self.transform(image)
         if self.target_transform:
@@ -57,7 +62,7 @@ class DeepHandoverDataset(Dataset):
         sample['force'] = force_tensor
         sample['gripper_is_open'] = gripper_state_tensor
 
-        return image_tensor, force_tensor, gripper_state_tensor
+        return image_tensor, force_tensor, gripper_state_tensor, tactile_readings_tensor
 
 if __name__ == "__main__":
     data = DeepHandoverDataset("2021-12-01-15:30:36")

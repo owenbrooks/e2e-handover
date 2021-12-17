@@ -217,9 +217,10 @@ class InferenceNode():
             img_cv2 = img_cv2[:, :, ::-1]
             img_t = prepare_image(img_cv2).unsqueeze_(0).to(self.device)
             forces_t = torch.autograd.Variable(torch.FloatTensor(self.wrench_array)).unsqueeze_(0).to(self.device)
+            tactile_t = torch.autograd.Variable(torch.FloatTensor(self.tactile_readings)).unsqueeze_(0).to(self.device)
 
             # forward + backward + optimize
-            output_t = self.net(img_t, forces_t)
+            output_t = self.net(img_t, forces_t, tactile_t.unsqueeze_(1))
             self.model_output = output_t.cpu().detach().numpy()[0][0]
             if self.model_output < 0.5:
                 rospy.logerr(self.model_output)

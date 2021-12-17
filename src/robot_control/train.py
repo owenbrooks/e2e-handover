@@ -60,12 +60,13 @@ def train(model, train_loader, test_loader, device, args):
             img = torch.Tensor(data[0]).to(device)
             forces = torch.Tensor(data[1]).to(device)
             gripper_is_open = torch.Tensor(data[2]).to(device)
+            tactile_readings = torch.Tensor(data[3]).to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            outputs = model(img, forces)
+            outputs = model(img, forces, tactile_readings)
             loss = criterion(outputs, gripper_is_open)
 
             loss.backward()
@@ -127,9 +128,10 @@ def test(model, test_loader, criterion, device):
             img = torch.Tensor(data[0]).to(device)
             forces = torch.Tensor(data[1]).to(device)
             labels = torch.Tensor(data[2]).to(device)
+            tactile_readings = torch.Tensor(data[3]).to(device)
 
             # forward + backward + optimize
-            outputs = model(img, forces)
+            outputs = model(img, forces, tactile_readings)
             loss = criterion(outputs, labels)
 
             output_thresh = outputs.cpu().data.numpy() > 0.5
