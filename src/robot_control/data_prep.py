@@ -6,6 +6,7 @@ import argparse
 from enum import IntEnum
 import os
 import pandas as pd
+import shutil
 
 class GripperAction(IntEnum):
     DoNothing=0
@@ -49,12 +50,39 @@ def calibrate_forces(session_id: str, static_index: int):
     df.to_csv(calib_annotations_file, sep=' ', index=False)
     print(f"Calibrated force readings for {calib_annotations_file}")
 
+def combine_sessions(session_list, out_session_id):
+    current_dirname = os.path.dirname(__file__)
+    data_dir = os.path.join(current_dirname, '../../data')
+    out_session_dir = os.path.join(data_dir, out_session_id)
+    out_annotations_path = os.path.join(out_session_dir, out_session_id + '.csv')
+
+    out_image_dir = os.path.join(out_session_dir, 'images')
+    if not os.path.exists(out_session_dir):
+        os.makedirs(out_image_dir)
+
+    # Combine csv files
+    in_frames = [pd.read_csv(os.path.join(data_dir, session_id, session_id + '.csv'), sep=' ') for session_id in session_list]
+    out_df = pd.concat(in_frames)        
+    out_df.to_csv(out_annotations_path, sep=' ', index=False)
+
+    print(f'CSV files combined, copying {len(out_df.index)} images (may take a while)')
+
+    # Copy images
+    in_image_dirs = [os.path.join(data_dir, session_id, 'images') for session_id in session_list]
+    for in_dir in in_image_dirs:
+        shutil.copytree(in_dir, out_image_dir, dirs_exist_ok=True)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--session', type=str)
     parser.add_argument('--static-index', default=0, type=int)
     parser.add_argument('--tcount', action='store_true')
     parser.add_argument('--calibf', action='store_true')
+
+    subparsers = parser.add_subparsers(dest='subcommand')
+    parser_combine = subparsers.add_parser('combine')
+    parser_combine.add_argument('-l', nargs="+", required=True, help="list of session ids to combine", dest="session_list")
+
     args = parser.parse_args()
 
     if args.tcount:
@@ -62,3 +90,6 @@ if __name__ == "__main__":
 
     if args.calibf:
         calibrate_forces(args.session, args.static_index)
+
+    if args.subcommand == 'combine':
+        combine_sessions(args.session_list, args.session)

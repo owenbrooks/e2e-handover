@@ -84,3 +84,6 @@ Testing inference:
 Running in gazebo
 - `roslaunch ur_gazebo ur5_bringup.launch` / `roslaunch robot_control ur5_bringup_gazebo.launch`
 - `roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch sim:=true`
+
+Combine datasets:
+`python3 src/robot_control/data_prep.py --session 2021-12-17-tactile combine -l 2021-12-17-00:55:09 2021-12-17-01:01:44`
