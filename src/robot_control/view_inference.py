@@ -7,9 +7,7 @@ from robot_control import model
 from robot_control.image_ops import prepare_image
 import torch
 
-def main(args):
-    # session_id = '2021-12-14-23'
-    session_id = '2021-12-15-23:06:16'
+def main(session_id, model_name):
     current_dirname = os.path.dirname(__file__)
     data_dir = os.path.join(current_dirname, '../../data')
     annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
@@ -19,17 +17,16 @@ def main(args):
 
     if not args.ground_truth:
         # Create network and load weights
-        model_name = '2021-12-14-23.pt'
         net = model.ResNet()
         current_dirname = os.path.dirname(__file__)
-        model_path = os.path.join(current_dirname, '../../models', model_name)
+        model_path = os.path.join(current_dirname, '../../models', model_name + '.pt')
         net.load_state_dict(torch.load(model_path))
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print("Using device: " + str(device))
         net.to(device)
         net.eval()
 
-    index = 307
+    index = 0
     while True:
         row = df.iloc[index]
         image_path = os.path.join(data_dir, session_id, 'images', row['image_id'])
@@ -68,5 +65,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--ground-truth', action='store_true')
+    parser.add_argument('--model-name', type=str, default='2021-12-14-23_calib')
+    parser.add_argument('--session', type=str, default='2021-12-14-23_calib')
     args = parser.parse_args()
-    main(args)
+    main(args.session, args.model_name)
