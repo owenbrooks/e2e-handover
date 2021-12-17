@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from pandas.core import frame
 from dataset import DeepHandoverDataset
 import torch
 import torch.nn as nn
@@ -13,7 +14,7 @@ import wandb
 def main(args):
     session_id = args.session
     print("Beginning training. Session id: " + session_id)
-    dataset = DeepHandoverDataset(session_id)
+    dataset = DeepHandoverDataset(session_id, frame_skip=args.frame_skip)
     # random.shuffle(dataset.img_annotation_path_pairs)
 
     # Split between test and train
@@ -153,6 +154,7 @@ def test(model, test_loader, criterion, device):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--session', type=str, default="2021-12-09-04:56:05", help='session id of data to train on')
+    parser.add_argument('--frame_skip', type=int, default=0, help='number of frames to skip (e.g. use only every 5th frame)')
 
     parser.add_argument('--log_step', type=int , default=10, help='step size for prining log info')
     parser.add_argument('--save_step', type=int , default=1000, help='step size for saving trained models')

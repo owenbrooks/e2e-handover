@@ -6,11 +6,11 @@ from torchvision import transforms
 import torch
 
 class DeepHandoverDataset(Dataset):
-    def __init__(self, session_id, transform=None, target_transform=None):
+    def __init__(self, session_id, frame_skip, transform=None, target_transform=None):
         current_dirname = os.path.dirname(__file__)
         data_dir = os.path.join(current_dirname, '../../data')
         annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
-        self.img_labels = pd.read_csv(annotations_file, sep=' ')
+        self.img_labels = pd.read_csv(annotations_file, sep=' ').iloc[::frame_skip, :]
         self.session_id = session_id
         self.transform = transform
         self.target_transform = target_transform
@@ -35,16 +35,16 @@ class DeepHandoverDataset(Dataset):
         image_tensor = self.transform(image)
 
         force_tensor = torch.Tensor([
-            self.img_labels["fx"][idx],
-            self.img_labels["fy"][idx],
-            self.img_labels["fz"][idx],
-            self.img_labels["mx"][idx],
-            self.img_labels["my"][idx],
-            self.img_labels["mz"][idx]
+            self.img_labels["fx"].iloc[idx],
+            self.img_labels["fy"].iloc[idx],
+            self.img_labels["fz"].iloc[idx],
+            self.img_labels["mx"].iloc[idx],
+            self.img_labels["my"].iloc[idx],
+            self.img_labels["mz"].iloc[idx]
         ])
 
         gripper_state_tensor = torch.Tensor([
-            self.img_labels["gripper_is_open"][idx]
+            self.img_labels["gripper_is_open"].iloc[idx]
         ])
 
         if self.transform:
