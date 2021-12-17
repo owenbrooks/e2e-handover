@@ -9,16 +9,14 @@ from detectron2.data import MetadataCatalog
 
 def inference(im):
     cfg = get_cfg()
-    # Add PointRend-specific config
-    point_rend.add_pointrend_config(cfg)
-    # Load a config from file
-    cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+    point_rend.add_pointrend_config(cfg) # Add PointRend-specific config
+    cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"))
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
-    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
+    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml")
+    coco_metadata = MetadataCatalog.get("coco_2017_val")
+
     predictor = DefaultPredictor(cfg)
     outputs = predictor(im)
-
-    coco_metadata = MetadataCatalog.get("coco_2017_val")
 
     v = Visualizer(im[:, :, ::-1], coco_metadata, scale=1.2, instance_mode=ColorMode.IMAGE_BW)
     point_rend_result = v.draw_instance_predictions(outputs["instances"].to("cpu")).get_image()
