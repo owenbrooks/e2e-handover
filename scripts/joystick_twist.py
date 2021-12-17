@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 import rospy
 import sensor_msgs.msg
-from geometry_msgs.msg import TwistStamped
+from geometry_msgs.msg import Twist
 
 class JoystickTwist:
     def __init__(self):
         rospy.init_node('joystick_twist', anonymous=False)
         rospy.Subscriber("joy", sensor_msgs.msg.Joy, self.joystick_callback)
-        self.twist_pub = rospy.Publisher("twist_cmd", TwistStamped, queue_size=10)
-        self.twist_msg = TwistStamped
+        self.twist_pub = rospy.Publisher("/twist_controller/command", Twist, queue_size=10)
+        self.twist_msg = Twist()
 
     def spin(self):
         # Publish the latest control message at 30Hz
@@ -22,17 +22,17 @@ class JoystickTwist:
         left_x, left_y, trig_l, right_x, right_y, trig_r, dpad_x, dpad_y = data.axes
         btn_a, btn_b, btn_x, btn_y, bump_l, bump_r, back, menu, _, stick_l, stick_r, _, _ = data.buttons
 
-        twist_msg = TwistStamped()
-        twist_msg.header.frame_id = 'camera_color_optical_frame'
+        twist_msg = Twist()
+        # twist_msg.header.frame_id = 'camera_color_optical_frame'
 
         # Translation
-        twist_msg.twist.linear.x = -deadband(left_x)
-        twist_msg.twist.linear.y = - deadband(left_y)
-        twist_msg.twist.linear.z = deadband(trig_l/2.0 - trig_r/2.0)
+        twist_msg.linear.x = -deadband(left_x)
+        twist_msg.linear.y = - deadband(left_y)
+        twist_msg.linear.z = deadband(trig_l/2.0 - trig_r/2.0)
         # Rotation
-        twist_msg.twist.angular.x =  deadband(right_y)
-        twist_msg.twist.angular.y = - deadband(right_x)
-        twist_msg.twist.angular.z = bump_r - bump_l
+        twist_msg.angular.x =  deadband(right_y)
+        twist_msg.angular.y = - deadband(right_x)
+        twist_msg.angular.z = bump_r - bump_l
 
         self.twist_msg = twist_msg
 
