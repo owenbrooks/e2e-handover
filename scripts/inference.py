@@ -51,8 +51,8 @@ obj_msg_to_enum = {
     3: ObjDetection.FINISHED_MOTION
 }
 
-GRAB_THRESHOLD_FORCE = 20 # Newtons
-RELEASE_THRESHOLD_FORCE = 20 # Newtons
+GRAB_THRESHOLD_FORCE = 200 # Newtons
+RELEASE_THRESHOLD_FORCE = 200 # Newtons
 MODEL_THRESHOLD = 0.5
 
 class InferenceNode():
@@ -233,6 +233,9 @@ class InferenceNode():
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
+
+                # send bias request to tactile sensor
+                tactile.request_bias()
         elif self.current_state == GripState.WAITING:
             if force > GRAB_THRESHOLD_FORCE or toggle_key_pressed or self.model_output < MODEL_THRESHOLD:
                 next_state = GripState.GRABBING
@@ -247,6 +250,9 @@ class InferenceNode():
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
+
+                # send bias request to tactile sensor
+                tactile.request_bias()
         elif self.current_state == GripState.RELEASING:
             if self.obj_det_state == ObjDetection.FINISHED_MOTION:
                 next_state = GripState.WAITING
