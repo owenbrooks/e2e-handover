@@ -49,8 +49,8 @@ obj_msg_to_enum = {
     3: ObjDetection.FINISHED_MOTION
 }
 
-GRAB_THRESHOLD_FORCE = 20 # Newtons
-RELEASE_THRESHOLD_FORCE = 20 # Newtons
+GRAB_THRESHOLD_FORCE = 1 # Newtons
+RELEASE_THRESHOLD_FORCE = 1 # Newtons
 MODEL_THRESHOLD = 0.5
 
 class InferenceNode():
@@ -71,7 +71,7 @@ class InferenceNode():
         self.toggle_key_pressed = False
 
         self.is_recording = False
-        self.is_inference_active = False
+        self.is_inference_active = True
         self.session_id = ""
 
         self.session_image_count = 0
@@ -88,7 +88,7 @@ class InferenceNode():
 
         # Create network and load weights
         # model_name = rospy.get_param("model_name", default='2021-12-09-04:56:05.pt')
-        model_name = rospy.get_param("model_name", default='2021-12-14-23_calib.pt')
+        model_name = rospy.get_param("model_name", default='2021-12-14-23_calib_best.pt')
         rospy.loginfo(f"Using model: {model_name}")
         self.net = model.ResNet()
         model_path = os.path.join(current_dirname, '../models', model_name)
@@ -105,7 +105,7 @@ class InferenceNode():
         self.model_output = NaN
 
     def force_callback(self, wrench_msg):
-        self.abs_z_force = abs(wrench_msg.wrench.force.z)
+        self.abs_z_force = abs(self.base_wrench_array[2] - wrench_msg.wrench.force.z)
 
         wrench_reading = np.array([wrench_msg.wrench.force.x, wrench_msg.wrench.force.y, wrench_msg.wrench.force.z, 
             wrench_msg.wrench.torque.x, wrench_msg.wrench.torque.y, wrench_msg.wrench.torque.z])
