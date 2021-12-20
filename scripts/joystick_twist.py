@@ -7,7 +7,7 @@ class JoystickTwist:
     def __init__(self):
         rospy.init_node('joystick_twist', anonymous=False)
         rospy.Subscriber("joy", sensor_msgs.msg.Joy, self.joystick_callback)
-        self.twist_pub = rospy.Publisher("/twist_controller/command", Twist, queue_size=10)
+        self.twist_pub = rospy.Publisher("/twist_cmd_raw", Twist, queue_size=10)
         self.twist_msg = Twist()
 
     def spin(self):

@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+  <node name="joy" pkg="joy" type="joy_node" output="screen"/>
+  <node name="joystick_twist" pkg="robot_control" type="joystick_twist.py" output="screen"/>
+  <node name="twist_filter" pkg="robot_control" type="twist_filter.py" output="screen"/>
+  <include file="$(find robot_control)/launch/ur5_bringup.launch" pass_all_args="true">
+    <arg name="robot_ip" value="10.0.0.2"/>
+  </include>
+</launch>

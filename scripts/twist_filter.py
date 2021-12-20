@@ -10,8 +10,8 @@ import tf
 class TwistFilter:
     def __init__(self):
         rospy.init_node('twist_filter', anonymous=False)
-        rospy.Subscriber("/twist_cmd", TwistStamped, self.twist_callback)
-        self.twist_pub = rospy.Publisher("/safety_twist_cmd", Twist, queue_size=10)
+        rospy.Subscriber("/twist_cmd_raw", Twist, self.twist_callback)
+        self.twist_pub = rospy.Publisher("/twist_controller/command", Twist, queue_size=10)
         self.twist_msg = TwistStamped()
 
         self.tf_listener = tf.TransformListener()
@@ -21,44 +21,44 @@ class TwistFilter:
     def twist_callback(self, twist_msg: TwistStamped):
         # Taken from https://github.com/acosgun/deep_handover/blob/master/src/state_machine.py
         try:
-            camera_t, camera_r = self.tf_listener.lookupTransform('base','camera_color_optical_frame', rospy.Time())
-            rospy.loginfo(camera_t)
+            camera_t, camera_r = self.tf_listener.lookupTransform('base_link','tool0', rospy.Time())
+            # rospy.loginfo(camera_t)
             safe_trans_v, safe_rot_v = get_safety_return_speeds(camera_t, camera_r)
 
             q_camera = pyquaternion.Quaternion(camera_r[3],camera_r[0],camera_r[1],camera_r[2])
-            ctrl = self.visual_control_msg
-            tran_v = q_camera.rotate((ctrl.vx,ctrl.vy,ctrl.vz))
-            rot_v = q_camera.rotate((ctrl.rx,ctrl.ry,ctrl.rz))
+            ctrl = twist_msg
+            tran_v = q_camera.rotate((ctrl.linear.x,ctrl.linear.y,ctrl.linear.z))
+            rot_v = q_camera.rotate((ctrl.angular.x,ctrl.angular.y,ctrl.angular.z))
 
-            # base_link_twist = self.tf_listener.transformVector3('base', twist_msg.twist.linear)
-
-            safe_trans_v, safe_rot_v = self.get_safety_return_speeds(camera_t,camera_r)
+            safe_trans_v, safe_rot_v = get_safety_return_speeds(camera_t,camera_r)
 
             msg = Twist()
             msg.linear.x, msg.linear.y, msg.linear.z = tran_v
             msg.angular.x, msg.angular.y, msg.angular.z = rot_v
 
-            msg.linear.x += safe_trans_v[0]
-            msg.linear.y += safe_trans_v[1]
-            msg.linear.z += safe_trans_v[2]
+            # msg.linear.x += safe_trans_v[0]
+            # msg.linear.y += safe_trans_v[1]
+            # msg.linear.z += safe_trans_v[2]
 
-            msg.angular.x += safe_rot_v[0]
-            msg.angular.y += safe_rot_v[1]
-            msg.angular.z += safe_rot_v[2]
+            # msg.angular.x += safe_rot_v[0]
+            # msg.angular.y += safe_rot_v[1]
+            # msg.angular.z += safe_rot_v[2]
 
+            # Scale the linear and angular speeds
             v_speed = 0.10 #m/s
             r_speed = math.radians(20) #deg/s
             msg.linear.x *= v_speed
             msg.linear.y *= v_speed
             msg.linear.z *= v_speed
-
             msg.angular.x *= r_speed
             msg.angular.y *= r_speed
             msg.angular.z *= r_speed
 
+            rospy.loginfo(msg)
+            self.twist_pub.publish(msg)
+
         except (tf.LookupException,tf.ExtrapolationException) as e:
             rospy.logwarn(f"twist_filter: TF exception: {e}")
-        rospy.loginfo(twist_msg)
         
 
 # Taken from https://github.com/acosgun/deep_handover/blob/master/src/state_machine.py
@@ -67,20 +67,7 @@ def get_safety_return_speeds(camera_t, camera_r):
     safe_trans_v = [0.0,0.0,0.0]
     safe_rot_v = np.array([0.0,0.0,0.0])
 
-    # #calculate safe quaternion based on camera position
-    # angle_to_base = math.atan2(camera_t[1],camera_t[0]) + math.pi/2
-    # safe_q = pyquaternion.Quaternion(axis=(0.0, 0.0, 1.0), radians=angle_to_base)
-    # safe_q *= pyquaternion.Quaternion(axis=(0.0, 1.0, 0.0), degrees=180.0)
-    #
-    # angle_limit = 45 #degrees
     q_camera = pyquaternion.Quaternion(camera_r[3],camera_r[0],camera_r[1],camera_r[2])
-
-    #calculate quaternion difference between camera and safe quaternion
-    # difference_q = safe_q/q_camera
-    # align_speed = min(2.0,max(0.0,(abs(difference_q.degrees)-angle_limit)/5.0))
-    # align_speed *= np.sign(difference_q.degrees)
-    # safe_rot_v = [difference_q.axis[0]*align_speed, difference_q.axis[1]*align_speed, difference_q.axis[2]*align_speed]
-
     cam_z = q_camera.rotate(np.array([0.0,0.0,1.0]))
     cam_y = q_camera.rotate(np.array([0.0,1.0,0.0]))
 
