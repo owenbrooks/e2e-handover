@@ -23,7 +23,6 @@ class TwistFilter:
         try:
             camera_t, camera_r = self.tf_listener.lookupTransform('base_link','tool0', rospy.Time())
             # rospy.loginfo(camera_t)
-            safe_trans_v, safe_rot_v = get_safety_return_speeds(camera_t, camera_r)
 
             q_camera = pyquaternion.Quaternion(camera_r[3],camera_r[0],camera_r[1],camera_r[2])
             ctrl = twist_msg
@@ -36,13 +35,13 @@ class TwistFilter:
             msg.linear.x, msg.linear.y, msg.linear.z = tran_v
             msg.angular.x, msg.angular.y, msg.angular.z = rot_v
 
-            # msg.linear.x += safe_trans_v[0]
-            # msg.linear.y += safe_trans_v[1]
-            # msg.linear.z += safe_trans_v[2]
+            msg.linear.x += safe_trans_v[0]
+            msg.linear.y += safe_trans_v[1]
+            msg.linear.z += safe_trans_v[2]
 
-            # msg.angular.x += safe_rot_v[0]
-            # msg.angular.y += safe_rot_v[1]
-            # msg.angular.z += safe_rot_v[2]
+            msg.angular.x += safe_rot_v[0]
+            msg.angular.y += safe_rot_v[1]
+            msg.angular.z += safe_rot_v[2]
 
             # Scale the linear and angular speeds
             v_speed = 0.10 #m/s
@@ -71,30 +70,29 @@ def get_safety_return_speeds(camera_t, camera_r):
     cam_z = q_camera.rotate(np.array([0.0,0.0,1.0]))
     cam_y = q_camera.rotate(np.array([0.0,1.0,0.0]))
 
-    #PAN TILT LIMITS
+    # PAN TILT LIMITS
     full_rot_speed = 1.2 #degrees per second
     full_rot_speed_dist = math.radians(5) #degrees per second
 
-    #get the normal to the plane that runs throught the robot z axis and the camera position
+    # get the normal to the plane that runs through the robot z axis and the camera position
     v_plane_norm = np.array([-camera_t[1],camera_t[0],0.0])
     v_plane_norm /= np.linalg.norm(v_plane_norm)
-    #project camera z axis onto plane
-    z_proj = cam_z - np.dot(cam_z,v_plane_norm)*v_plane_norm
-    #normalise z projection
-    z_proj /= np.linalg.norm(z_proj)
+    z_proj = cam_z - np.dot(cam_z,v_plane_norm)*v_plane_norm # project camera z axis onto plane
+    z_proj /= np.linalg.norm(z_proj) # normalise z projection
 
-    #PAN
+    # PAN
     pan_angle_limit = math.radians(20) # degrees
-    #get the pan rotation axis between camera z and plane
+    # get the pan rotation axis between camera z and plane
     pan_axis = -np.cross(z_proj,cam_z)
-    #get the pan angle
-    pan_angle = np.linalg.norm(pan_axis) #TODO This not correct way to get angle from cross product. It needs a sin
-    #normalise pan rotation axis
-    pan_axis /= np.linalg.norm(pan_axis)
+    pan_angle = np.arcsin(np.linalg.norm(pan_axis)) # get the pan angle
+    pan_axis /= np.linalg.norm(pan_axis) # normalise pan rotation axis
 
     pan_return_speed = min(full_rot_speed,max(0,(pan_angle-pan_angle_limit)/full_rot_speed_dist*full_rot_speed))
 
     safe_rot_v += pan_axis * pan_return_speed
+
+    rospy.loginfo(f"panaxis {pan_axis}")
+    rospy.loginfo(f"pan {pan_return_speed}")
 
     #TILT LIMIT
     out_norm = np.array([camera_t[0],camera_t[1],0.0])
@@ -117,9 +115,11 @@ def get_safety_return_speeds(camera_t, camera_r):
     # tilt_return_speed
     # print("%f %f" % (math.degrees(tilt_sign_x),math.degrees(tilt_angle)))
 
-    safe_rot_v -= v_plane_norm * tilt_return_speed
+    safe_rot_v += v_plane_norm * tilt_return_speed
 
-    #LOOK UP
+    rospy.loginfo(f"tilt {tilt_return_speed}")
+
+    # LOOK UP
     if tilt_angle > -math.pi/4 and tilt_angle < math.pi/4:
         up_dir = np.array([0.0,0.0,1.0])
     else:
@@ -128,38 +128,44 @@ def get_safety_return_speeds(camera_t, camera_r):
     up_proj = up_dir - np.dot(up_dir,cam_z)*cam_z
     #normalise project up direction
     up_proj /= np.linalg.norm(up_proj)
-    #If up direction is withing +- 90deg  cam_y
+    #If up direction is within +- 90deg  cam_y, correct the camera roll
     if np.dot(up_proj,-cam_y) > 0:
-        #Get rotation speed from cross product
-        safe_rot_v += -np.cross(up_proj,-cam_y)*5
+        safe_rot_v += np.cross(up_proj,-cam_y)*5 # Get rotation speed from cross product
 
     full_speed_dist = 0.05
     full_speed = 1.5
     #Floor
-    safe_z = 0.4#0.15
+    safe_z = 0.4
     safe_trans_v[2] += max(0,(safe_z -camera_t[2])/full_speed_dist*full_speed)
+    rospy.loginfo(max(0,(safe_z -camera_t[2])/full_speed_dist*full_speed))
 
-    #Inner Cylinder
-    cylinder_radius = 0.5# 0.35
-    dist = math.sqrt( camera_t[0]**2 + camera_t[1]**2)
-    cylinder_return_speed = max(0,(cylinder_radius-dist)/full_speed_dist*full_speed)
-    safe_trans_v[0] += camera_t[0]/dist * cylinder_return_speed
-    safe_trans_v[1] += camera_t[1]/dist * cylinder_return_speed
+    # #Inner Cylinder
+    # cylinder_radius = 0.5# 0.35
+    # dist = math.sqrt( camera_t[0]**2 + camera_t[1]**2)
+    # cylinder_return_speed = max(0,(cylinder_radius-dist)/full_speed_dist*full_speed)
+    # safe_trans_v[0] += camera_t[0]/dist * cylinder_return_speed
+    # safe_trans_v[1] += camera_t[1]/dist * cylinder_return_speed
 
-    #Outer Sphere
-    sphere_radius = 0.9#0.7
-    dist = math.sqrt( camera_t[0]**2 + camera_t[1]**2 + camera_t[2]**2)
-    cylinder_return_speed = min(0,(sphere_radius-dist)/full_speed_dist*full_speed)
-    safe_trans_v[0] += camera_t[0]/dist * cylinder_return_speed
-    safe_trans_v[1] += camera_t[1]/dist * cylinder_return_speed
-    safe_trans_v[2] += camera_t[2]/dist * cylinder_return_speed
+    # rospy.loginfo(f"cyl {cylinder_return_speed}")
+
+    # #Outer Sphere
+    # sphere_radius = 0.9#0.7
+    # dist = math.sqrt( camera_t[0]**2 + camera_t[1]**2 + camera_t[2]**2)
+    # cylinder_return_speed = min(0,(sphere_radius-dist)/full_speed_dist*full_speed)
+    # safe_trans_v[0] += camera_t[0]/dist * cylinder_return_speed
+    # safe_trans_v[1] += camera_t[1]/dist * cylinder_return_speed
+    # safe_trans_v[2] += camera_t[2]/dist * cylinder_return_speed
+
+    # rospy.loginfo(f"cyl2 {cylinder_return_speed}")
 
     #back Wall
-    wall_unit_norm = [0.7071,-0.7071]
-    dist = camera_t[0] * wall_unit_norm[0] + camera_t[1] * wall_unit_norm[1]
-    wall_return_speed = -min(0,dist/full_speed_dist*full_speed)
-    safe_trans_v[0] += wall_unit_norm[0] * wall_return_speed
-    safe_trans_v[1] += wall_unit_norm[1] * wall_return_speed
+    # wall_unit_norm = [0.7071,-0.7071]
+    # dist = camera_t[0] * wall_unit_norm[0] + camera_t[1] * wall_unit_norm[1]
+    # wall_return_speed = -min(0,dist/full_speed_dist*full_speed)
+    # safe_trans_v[0] += wall_unit_norm[0] * wall_return_speed
+    # safe_trans_v[1] += wall_unit_norm[1] * wall_return_speed
+
+    # rospy.loginfo(f"wall {wall_return_speed}")
 
     return (safe_trans_v, safe_rot_v.tolist())
 

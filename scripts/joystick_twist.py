@@ -37,8 +37,7 @@ class JoystickTwist:
 def deadband(var,band=0.2):
     var = max(-1.0,min(var,1.0))
 
-    if var > band:
-        return (var-band) / (1.0-band)
+    ii
 
     if var < -band:
         return (var+band) / (1.0-band)
