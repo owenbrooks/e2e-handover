@@ -22,12 +22,10 @@ class TwistFilter:
         # Taken from https://github.com/acosgun/deep_handover/blob/master/src/state_machine.py
         try:
             camera_t, camera_r = self.tf_listener.lookupTransform('base_link','tool0', rospy.Time())
-            # rospy.loginfo(camera_t)
-
             q_camera = pyquaternion.Quaternion(camera_r[3],camera_r[0],camera_r[1],camera_r[2])
-            ctrl = twist_msg
-            tran_v = q_camera.rotate((ctrl.linear.x,ctrl.linear.y,ctrl.linear.z))
-            rot_v = q_camera.rotate((ctrl.angular.x,ctrl.angular.y,ctrl.angular.z))
+            # Transform velocities so that they are in the camera frame
+            tran_v = q_camera.rotate((twist_msg.linear.x,twist_msg.linear.y,twist_msg.linear.z))
+            rot_v = q_camera.rotate((twist_msg.angular.x,twist_msg.angular.y,twist_msg.angular.z))
 
             safe_trans_v, safe_rot_v = get_safety_return_speeds(camera_t,camera_r)
 
