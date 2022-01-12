@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import os
-import csv
 import numpy as np
 from numpy.core.numeric import NaN
 import rospy
@@ -9,20 +8,19 @@ from sensor_msgs.msg import Joy, Image
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 from enum import Enum
 from robot_control.gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
-from datetime import datetime
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 from pynput import keyboard
 from robot_control import model
 import torch
 from robot_control.image_ops import prepare_image
+from robot_control.recorder import Recorder
 
 # Node to record data and perform inference given a trained model
 # Launch node, gripper opens
 # Give object to arm (triggered by force threshold)
 # Can take object from arm if needed (triggered by force threshold)
-# Button to toggle recording
-# Button to toggle gripper
+# Button to toggle recording and toggle gripper
 
 # Data is stored in 'data/${SESSION_ID}' folder, where SESSION_ID is unique timestamp
 # Images are stored in that folder with index and session id as name
@@ -65,18 +63,16 @@ class InferenceNode():
 
         self.cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images
 
+        self.recorder = Recorder()
+
         self.current_state = GripState.WAITING
         self.obj_det_state = ObjDetection.GRIPPER_OFFLINE
         self.abs_z_force = 0.0
         self.toggle_key_pressed = False
 
-        self.is_recording = False
         self.is_inference_active = True
-        self.session_id = ""
 
-        self.session_image_count = 0
-
-        self.wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # [fx, fy, fz, mx, my, mz]
+        self.calib_wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # [fx, fy, fz, mx, my, mz]
         self.base_wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # used to "calibrate" the force sensor since it gives different readings at different times
 
         # Create folder for storing recorded images and the csv with numerical/annotation data
@@ -107,54 +103,18 @@ class InferenceNode():
     def force_callback(self, wrench_msg):
         self.abs_z_force = abs(self.base_wrench_array[2] - wrench_msg.wrench.force.z)
 
-        wrench_reading = np.array([wrench_msg.wrench.force.x, wrench_msg.wrench.force.y, wrench_msg.wrench.force.z, 
+        self.raw_wrench_reading = np.array([wrench_msg.wrench.force.x, wrench_msg.wrench.force.y, wrench_msg.wrench.force.z, 
             wrench_msg.wrench.torque.x, wrench_msg.wrench.torque.y, wrench_msg.wrench.torque.z])
 
         # Subtracts a previous wrench reading to act as a kind of calibration
-        self.wrench_array = wrench_reading - self.base_wrench_array
+        self.calib_wrench_array = self.raw_wrench_reading - self.base_wrench_array
 
-        # Continuously calibrates the force sensor unless inference is activated
-        if not self.is_inference_active:
-            self.base_wrench_array = wrench_reading
+        # Continuously calibrates the force sensor unless inference or recording is activated
+        if not self.is_inference_active and not self.recorder.is_recording:
+            self.base_wrench_array = self.raw_wrench_reading
     
     def gripper_state_callback(self, gripper_input_msg):
         self.obj_det_state = obj_msg_to_enum[gripper_input_msg.gOBJ]
-
-    def start_recording(self):
-        if self.is_recording:
-            rospy.loginfo("Already recording. Session: " + self.session_id)
-        else:
-            self.is_recording = True
-            self.session_image_count = 0
-            # Create folder for storing recorded images and the session csv
-            self.session_id = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
-            current_dirname = os.path.dirname(__file__)
-            session_dir = os.path.join(current_dirname, '../data', self.session_id)
-            image_dir = os.path.join(session_dir, 'images')
-            os.makedirs(image_dir)
-            # Create csv file for recording numerical data and annotation in the current session
-            fname = os.path.join(session_dir, self.session_id + '.csv')
-            with open(fname, 'w+') as csvfile:
-                datawriter = csv.writer(csvfile, delimiter=' ',
-                                        quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                header = ['image_id', 'gripper_is_open', 'fx', 'fy', 'fz', 'mx', 'my', 'mz']
-                datawriter.writerow(header)
-
-            rospy.loginfo("Started recording. Session: " + self.session_id)
-
-    def stop_recording(self):
-        if not self.is_recording:
-            rospy.loginfo("Hadn't yet started recording.")
-        else:
-            self.is_recording = False
-            rospy.loginfo("Finished recording. Session: " + self.session_id)
-            rospy.loginfo("Recorded " + str(self.session_image_count) + " images")
-
-    def toggle_recording(self):
-        if self.is_recording:
-            self.stop_recording()
-        else:
-            self.start_recording()
 
     def toggle_gripper(self):
         self.toggle_key_pressed = True
@@ -165,7 +125,7 @@ class InferenceNode():
         x_pressed = joy_msg.buttons[0] == 1
 
         if share_pressed:
-            self.toggle_recording()
+            self.recorder.toggle_recording()
 
         if down_pressed or x_pressed:
             self.toggle_gripper()
@@ -182,33 +142,20 @@ class InferenceNode():
                 self.toggle_gripper()
 
     def image_callback(self, image_msg):
-        if self.is_recording:
+        try:
+            img_cv2 = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
+        except CvBridgeError as e:
+            rospy.logerr(e)
+
+        if self.recorder.is_recording:
             gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
-
-
-            # Save image as png
-            current_dirname = os.path.dirname(__file__)
-            image_name = str(self.session_image_count) + '_' + self.session_id + '.png'
-            self.session_image_count += 1
-            image_path = os.path.join(current_dirname, '../data', self.session_id, 'images', image_name)
-            try:
-                cv2_img = self.cv_bridge.imgmsg_to_cv2(image_msg, "bgr8")
-            except CvBridgeError as e:
-                rospy.logerr(e)
-            else:
-                cv2.imwrite(image_path, cv2_img)
-
-            # Append numerical data and annotation to the session csv
-            csv_path = os.path.join(current_dirname, '../data', self.session_id, self.session_id + '.csv')
-            with open(csv_path, 'a+') as csvfile:
-                datawriter = csv.writer(csvfile, delimiter=' ')
-                datawriter.writerow([image_name, gripper_is_open] + self.wrench_array.tolist())
+            self.recorder.record_row(img_cv2, self.raw_wrench_reading, gripper_is_open)
 
         if self.is_inference_active and self.net is not None:
             img_cv2 = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
             img_cv2 = img_cv2[:, :, ::-1]
             img_t = prepare_image(img_cv2).unsqueeze_(0).to(self.device)
-            forces_t = torch.autograd.Variable(torch.FloatTensor(self.wrench_array)).unsqueeze_(0).to(self.device)
+            forces_t = torch.autograd.Variable(torch.FloatTensor(self.calib_wrench_array)).unsqueeze_(0).to(self.device)
 
             # forward + backward + optimize
             output_t = self.net(img_t, forces_t)
@@ -270,7 +217,7 @@ class InferenceNode():
                 print("" + str(self.current_state) + " -> " + str(next_state))
                 self.current_state = next_state
 
-            rospy.loginfo("Rec: %s, infer: %s, out: %.4f, f_z: %.2f, %s, %s", self.is_recording, self.is_inference_active, self.model_output, self.abs_z_force, self.obj_det_state, self.current_state)
+            rospy.loginfo("Rec: %s, infer: %s, out: %.4f, f_z: %.2f, %s, %s", self.recorder.is_recording, self.is_inference_active, self.model_output, self.abs_z_force, self.obj_det_state, self.current_state)
 
             rate.sleep()
 
