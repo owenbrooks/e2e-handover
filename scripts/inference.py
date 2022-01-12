@@ -16,6 +16,14 @@ import torch
 from robot_control.image_ops import prepare_image
 from robot_control.recorder import Recorder
 
+use_tactile = True
+try:
+    from papillarray_ros_v2.msg import SensorState
+    from robot_control import tactile
+except ImportError:
+    use_tactile = False
+    print("Couldn't import papillarray")
+
 # Node to record data and perform inference given a trained model
 # Launch node, gripper opens
 # Give object to arm (triggered by force threshold)
@@ -61,16 +69,20 @@ class InferenceNode():
         self.joy_sub = rospy.Subscriber('joy', Joy, self.joy_callback) # joystick control
         self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
 
+        if use_tactile:
+            self.tactile_sub = rospy.Subscriber('/hub_0/sensor_0', SensorState, self.tactile_callback)
+            self.tactile_readings = [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
+
         self.cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images
 
-        self.recorder = Recorder()
+        self.recorder = Recorder(False)
 
         self.current_state = GripState.WAITING
         self.obj_det_state = ObjDetection.GRIPPER_OFFLINE
         self.abs_z_force = 0.0
         self.toggle_key_pressed = False
 
-        self.is_inference_active = True
+        self.is_inference_active = False
 
         self.calib_wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # [fx, fy, fz, mx, my, mz]
         self.base_wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # used to "calibrate" the force sensor since it gives different readings at different times
@@ -99,6 +111,10 @@ class InferenceNode():
             rospy.logwarn(f"Unable to load model at {model_path}")
 
         self.model_output = NaN
+
+    def tactile_callback(self, sensor_msg):
+        value_list = tactile.sensor_state_to_list(sensor_msg)
+        self.tactile_readings = value_list
 
     def force_callback(self, wrench_msg):
         self.abs_z_force = abs(self.base_wrench_array[2] - wrench_msg.wrench.force.z)
@@ -134,7 +150,7 @@ class InferenceNode():
         try:
             char = key.char
             if char == 'r': # r key to start/stop recording
-                self.toggle_recording()
+                self.recorder.toggle_recording()
             if char == 'i': # i key to start/stop inference controlling the gripper
                 self.is_inference_active = not self.is_inference_active
         except AttributeError: # special keys (ctrl, alt, etc.) will cause this exception
@@ -217,7 +233,7 @@ class InferenceNode():
                 print("" + str(self.current_state) + " -> " + str(next_state))
                 self.current_state = next_state
 
-            rospy.loginfo("Rec: %s, infer: %s, out: %.4f, f_z: %.2f, %s, %s", self.recorder.is_recording, self.is_inference_active, self.model_output, self.abs_z_force, self.obj_det_state, self.current_state)
+            rospy.loginfo("Rec: %s, infer: %s, out: %.4f, f_z: %.2f, %s, %s, tactile: %s", self.recorder.is_recording, self.is_inference_active, self.model_output, self.abs_z_force, self.obj_det_state, self.current_state, use_tactile)
 
             rate.sleep()
 

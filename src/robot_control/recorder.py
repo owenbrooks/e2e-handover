@@ -6,6 +6,7 @@ from geometry_msgs.msg import Twist
 from datetime import datetime
 import cv2
 import numpy as np
+from robot_control import tactile
 
 # Class to record data 
 # Data is stored in 'data/${SESSION_ID}' folder, where SESSION_ID is unique timestamp
@@ -13,8 +14,7 @@ import numpy as np
 # Each session folder has a csv with numerical data and gripper state associated with image name
 
 class Recorder():
-    def __init__(self):
-        rospy.init_node("recorder")
+    def __init__(self, record_tactile):
         # self.twist_sub = rospy.Subscriber('/twist_controller/command', Twist, self.force_callback)
         self.twist_sub = rospy.Subscriber('/twist_cmd_raw', Twist, self.twist_callback)
 
@@ -23,6 +23,8 @@ class Recorder():
         self.session_image_count = 0
 
         self.twist_array = 6*[0.0]
+
+        self.record_tactile = record_tactile
 
         # Create folder for storing recorded images and the csv with numerical/annotation data
         current_dirname = os.path.dirname(__file__)
@@ -34,7 +36,7 @@ class Recorder():
     def twist_callback(self, twist_msg):
         self.twist_array = [twist_msg.linear.x, twist_msg.linear.y, twist_msg.linear.z, twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z]
 
-    def record_row(self, image, wrench, gripper_is_open):
+    def record_row(self, image, wrench, gripper_is_open, tactile_readings=[]):
         if self.is_recording:
             # Save image as png
             current_dirname = os.path.dirname(__file__)
@@ -47,7 +49,12 @@ class Recorder():
             csv_path = os.path.join(current_dirname, '../../data', self.session_id, self.session_id + '.csv')
             with open(csv_path, 'a+') as csvfile:
                 datawriter = csv.writer(csvfile, delimiter=' ')
-                datawriter.writerow([image_name, gripper_is_open] + wrench.tolist() + self.twist_array)
+                row = [image_name, gripper_is_open] + wrench.tolist() + self.twist_array
+
+                if self.record_tactile:
+                    row += tactile_readings
+
+                datawriter.writerow(row)
 
     def start_recording(self):
         if self.is_recording:
@@ -70,6 +77,9 @@ class Recorder():
                 wrench_header = ['fx', 'fy', 'fz', 'mx', 'my', 'mz']
                 twist_header = ['vx', 'vy', 'vz', 'wx', 'wy', 'wz']
                 header = ['image_id', 'gripper_is_open'] + wrench_header + twist_header
+                if self.record_tactile:
+                    header += tactile.papillarray_keys
+            
                 datawriter.writerow(header)
 
             rospy.loginfo("Started recording. Session: " + self.session_id)
@@ -93,8 +103,8 @@ class Recorder():
     
 if __name__ == "__main__":
     try: 
-        recorder = Recorder()
+        recorder = Recorder(True)
         recorder.start_recording()
-        recorder.record_row(np.array([1]), np.zeros(6), False)
+        recorder.record_row(np.array([1]), np.zeros(6), False, np.zeros(10*6).tolist())
     except KeyboardInterrupt:
         pass
