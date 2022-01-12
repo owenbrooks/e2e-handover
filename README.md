@@ -87,3 +87,7 @@ Running in gazebo
 
 Combine datasets:
 `python3 src/robot_control/data_prep.py --session 2021-12-17-tactile combine -l 2021-12-17-00:55:09 2021-12-17-01:01:44`
+
+## Pairing controller
+- For DualShock PS4 controller, press and hold both the Share and PS buttons.
+- Open Bluetooth settings and click on 'Wireless controller' to pair.

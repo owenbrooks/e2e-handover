@@ -13,6 +13,7 @@ RUN apt-get -y update && apt-get install -y \
     git \
     wget \
     tmux \
+    python3-tk \
     && rm -rf /var/lib/apt/lists/*
 
 # Make the prompt a little nicer
@@ -29,7 +30,7 @@ COPY ./package.xml ${SOURCE_DIR}/package.xml
 WORKDIR ${CATKIN_WS}
 RUN apt-get -y update && rosdep update && rosdep install --from-paths src --ignore-src -r -y
 
-RUN pip install wandb
+RUN pip install wandb pyquaternion
 
 # Build the project
 COPY . ${SOURCE_DIR}
