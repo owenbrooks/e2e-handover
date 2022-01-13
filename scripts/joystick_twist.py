@@ -25,10 +25,10 @@ class JoystickTwist:
         twist_msg = Twist()
 
         # Populate twist msg with joystick values ranging from -1.0 to 1.0
-        twist_msg.linear.x = deadband(left_x)
+        twist_msg.linear.x = -deadband(left_x)
         twist_msg.linear.y = -deadband(left_y)
-        twist_msg.linear.z = deadband(trig_l/2.0 - trig_r/2.0)
-        twist_msg.angular.x =  -deadband(right_y)
+        twist_msg.linear.z = deadband((trig_l-1.0)/2.0 - (trig_r-1.0)/2.0)
+        twist_msg.angular.x =  deadband(right_y)
         twist_msg.angular.y = -deadband(right_x)
         twist_msg.angular.z = bump_r - bump_l
 

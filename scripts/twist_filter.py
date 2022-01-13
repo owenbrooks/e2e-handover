@@ -21,7 +21,7 @@ class TwistFilter:
     def twist_callback(self, twist_msg: TwistStamped):
         # Taken from https://github.com/acosgun/deep_handover/blob/master/src/state_machine.py
         try:
-            camera_t, camera_r = self.tf_listener.lookupTransform('base_link','tool0', rospy.Time())
+            camera_t, camera_r = self.tf_listener.lookupTransform('base','tool0', rospy.Time())
             q_camera = pyquaternion.Quaternion(camera_r[3],camera_r[0],camera_r[1],camera_r[2])
             # Transform velocities so that they are in the camera frame
             tran_v = q_camera.rotate((twist_msg.linear.x,twist_msg.linear.y,twist_msg.linear.z))
@@ -51,7 +51,7 @@ class TwistFilter:
             msg.angular.y *= r_speed
             msg.angular.z *= r_speed
 
-            rospy.loginfo(msg)
+            # rospy.loginfo(msg)
             self.twist_pub.publish(msg)
 
         except (tf.LookupException,tf.ExtrapolationException) as e:
@@ -89,8 +89,8 @@ def get_safety_return_speeds(camera_t, camera_r):
 
     safe_rot_v += pan_axis * pan_return_speed
 
-    rospy.loginfo(f"panaxis {pan_axis}")
-    rospy.loginfo(f"pan {pan_return_speed}")
+    # rospy.loginfo(f"panaxis {pan_axis}")
+    # rospy.loginfo(f"pan {pan_return_speed}")
 
     #TILT LIMIT
     out_norm = np.array([camera_t[0],camera_t[1],0.0])
@@ -113,9 +113,9 @@ def get_safety_return_speeds(camera_t, camera_r):
     # tilt_return_speed
     # print("%f %f" % (math.degrees(tilt_sign_x),math.degrees(tilt_angle)))
 
-    safe_rot_v += v_plane_norm * tilt_return_speed
+    safe_rot_v -= v_plane_norm * tilt_return_speed
 
-    rospy.loginfo(f"tilt {tilt_return_speed}")
+    # rospy.loginfo(f"tilt {tilt_return_speed}")
 
     # LOOK UP
     if tilt_angle > -math.pi/4 and tilt_angle < math.pi/4:
@@ -128,31 +128,32 @@ def get_safety_return_speeds(camera_t, camera_r):
     up_proj /= np.linalg.norm(up_proj)
     #If up direction is within +- 90deg  cam_y, correct the camera roll
     if np.dot(up_proj,-cam_y) > 0:
-        safe_rot_v += np.cross(up_proj,-cam_y)*5 # Get rotation speed from cross product
+        safe_rot_v -= np.cross(up_proj,-cam_y)*5 # Get rotation speed from cross product
 
     full_speed_dist = 0.05
     full_speed = 1.5
     #Floor
-    safe_z = 0.4
+    safe_z = 0.3
     safe_trans_v[2] += max(0,(safe_z -camera_t[2])/full_speed_dist*full_speed)
-    rospy.loginfo(max(0,(safe_z -camera_t[2])/full_speed_dist*full_speed))
+    # rospy.loginfo(max(0,(safe_z -camera_t[2])/full_speed_dist*full_speed))
 
-    # #Inner Cylinder
-    # cylinder_radius = 0.5# 0.35
-    # dist = math.sqrt( camera_t[0]**2 + camera_t[1]**2)
-    # cylinder_return_speed = max(0,(cylinder_radius-dist)/full_speed_dist*full_speed)
-    # safe_trans_v[0] += camera_t[0]/dist * cylinder_return_speed
-    # safe_trans_v[1] += camera_t[1]/dist * cylinder_return_speed
+    #Inner Cylinder
+    cylinder_radius = 0.35# 0.5
+    dist = math.sqrt(camera_t[0]**2 + camera_t[1]**2)
+    cylinder_return_speed = max(0,(cylinder_radius-dist)/full_speed_dist*full_speed)
+    safe_trans_v[0] += camera_t[0]/dist * cylinder_return_speed
+    safe_trans_v[1] += camera_t[1]/dist * cylinder_return_speed
 
-    # rospy.loginfo(f"cyl {cylinder_return_speed}")
+    # # rospy.loginfo(f"cyl {cylinder_return_speed}")
+    # rospy.loginfo(f"camera_t: {camera_t}")
 
     # #Outer Sphere
-    # sphere_radius = 0.9#0.7
-    # dist = math.sqrt( camera_t[0]**2 + camera_t[1]**2 + camera_t[2]**2)
-    # cylinder_return_speed = min(0,(sphere_radius-dist)/full_speed_dist*full_speed)
-    # safe_trans_v[0] += camera_t[0]/dist * cylinder_return_speed
-    # safe_trans_v[1] += camera_t[1]/dist * cylinder_return_speed
-    # safe_trans_v[2] += camera_t[2]/dist * cylinder_return_speed
+    sphere_radius = 0.8#0.7
+    dist = math.sqrt( camera_t[0]**2 + camera_t[1]**2 + camera_t[2]**2)
+    cylinder_return_speed = min(0,(sphere_radius-dist)/full_speed_dist*full_speed)*0.3
+    safe_trans_v[0] += camera_t[0]/dist * cylinder_return_speed
+    safe_trans_v[1] += camera_t[1]/dist * cylinder_return_speed
+    safe_trans_v[2] += camera_t[2]/dist * cylinder_return_speed
 
     # rospy.loginfo(f"cyl2 {cylinder_return_speed}")
 

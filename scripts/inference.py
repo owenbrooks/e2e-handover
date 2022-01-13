@@ -54,8 +54,8 @@ obj_msg_to_enum = {
     3: ObjDetection.FINISHED_MOTION
 }
 
-GRAB_THRESHOLD_FORCE = 1 # Newtons
-RELEASE_THRESHOLD_FORCE = 1 # Newtons
+GRAB_THRESHOLD_FORCE = 50 # Newtons
+RELEASE_THRESHOLD_FORCE = 50 # Newtons
 MODEL_THRESHOLD = 0.5
 
 class InferenceNode():
@@ -74,7 +74,7 @@ class InferenceNode():
 
         self.cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images
 
-        self.recorder = Recorder(False)
+        self.recorder = Recorder(use_tactile)
 
         self.current_state = GripState.WAITING
         self.obj_det_state = ObjDetection.GRIPPER_OFFLINE
