@@ -11,7 +11,7 @@ from robot_control.gripper import open_gripper_msg, close_gripper_msg, activate_
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 from pynput import keyboard
-from robot_control import model
+from robot_control.torch import model
 import torch
 from robot_control.image_ops import prepare_image
 from robot_control.recorder import Recorder
