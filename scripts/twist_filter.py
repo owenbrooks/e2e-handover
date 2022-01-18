@@ -5,54 +5,57 @@ import numpy as np
 import math
 import pyquaternion
 import tf
+
 # Node that alters twist messages to restrict robot movement to a small workspace
 
 class TwistFilter:
     def __init__(self):
         rospy.init_node('twist_filter', anonymous=False)
+
         rospy.Subscriber("/twist_cmd_raw", Twist, self.twist_callback)
-        self.twist_pub = rospy.Publisher("/twist_controller/command", Twist, queue_size=10)
+        
+        self.twist_pub = rospy.Publisher("/twist_cmd_filtered", Twist, queue_size=10)
         self.twist_msg = TwistStamped()
 
         self.tf_listener = tf.TransformListener()
         self.tf_broadcaster = tf.TransformBroadcaster()
 
 
-    def twist_callback(self, twist_msg: TwistStamped):
+    def twist_callback(self, raw_twist_msg: TwistStamped):
         # Taken from https://github.com/acosgun/deep_handover/blob/master/src/state_machine.py
         try:
             camera_t, camera_r = self.tf_listener.lookupTransform('base','tool0', rospy.Time())
             q_camera = pyquaternion.Quaternion(camera_r[3],camera_r[0],camera_r[1],camera_r[2])
-            # Transform velocities so that they are in the camera frame
-            tran_v = q_camera.rotate((twist_msg.linear.x,twist_msg.linear.y,twist_msg.linear.z))
-            rot_v = q_camera.rotate((twist_msg.angular.x,twist_msg.angular.y,twist_msg.angular.z))
+            # Transform velocities so that they are in the base frame
+            tran_v = q_camera.rotate((raw_twist_msg.linear.x,raw_twist_msg.linear.y,raw_twist_msg.linear.z))
+            rot_v = q_camera.rotate((raw_twist_msg.angular.x,raw_twist_msg.angular.y,raw_twist_msg.angular.z))
 
             safe_trans_v, safe_rot_v = get_safety_return_speeds(camera_t,camera_r)
 
-            msg = Twist()
-            msg.linear.x, msg.linear.y, msg.linear.z = tran_v
-            msg.angular.x, msg.angular.y, msg.angular.z = rot_v
+            filtered_twist = Twist()
+            filtered_twist.linear.x, filtered_twist.linear.y, filtered_twist.linear.z = tran_v
+            filtered_twist.angular.x, filtered_twist.angular.y, filtered_twist.angular.z = rot_v
 
-            msg.linear.x += safe_trans_v[0]
-            msg.linear.y += safe_trans_v[1]
-            msg.linear.z += safe_trans_v[2]
+            filtered_twist.linear.x += safe_trans_v[0]
+            filtered_twist.linear.y += safe_trans_v[1]
+            filtered_twist.linear.z += safe_trans_v[2]
 
-            msg.angular.x += safe_rot_v[0]
-            msg.angular.y += safe_rot_v[1]
-            msg.angular.z += safe_rot_v[2]
+            filtered_twist.angular.x += safe_rot_v[0]
+            filtered_twist.angular.y += safe_rot_v[1]
+            filtered_twist.angular.z += safe_rot_v[2]
 
             # Scale the linear and angular speeds
             v_speed = 0.10 #m/s
             r_speed = math.radians(20) #deg/s
-            msg.linear.x *= v_speed
-            msg.linear.y *= v_speed
-            msg.linear.z *= v_speed
-            msg.angular.x *= r_speed
-            msg.angular.y *= r_speed
-            msg.angular.z *= r_speed
+            filtered_twist.linear.x *= v_speed
+            filtered_twist.linear.y *= v_speed
+            filtered_twist.linear.z *= v_speed
+            filtered_twist.angular.x *= r_speed
+            filtered_twist.angular.y *= r_speed
+            filtered_twist.angular.z *= r_speed
 
             # rospy.loginfo(msg)
-            self.twist_pub.publish(msg)
+            self.twist_pub.publish(filtered_twist)
 
         except (tf.LookupException,tf.ExtrapolationException) as e:
             rospy.logwarn(f"twist_filter: TF exception: {e}")
