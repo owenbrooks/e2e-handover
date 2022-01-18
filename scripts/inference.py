@@ -83,6 +83,7 @@ class InferenceNode():
 
         self.is_inference_active = False
 
+        self.raw_wrench_reading = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # [fx, fy, fz, mx, my, mz]
         self.calib_wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # [fx, fy, fz, mx, my, mz]
         self.base_wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # used to "calibrate" the force sensor since it gives different readings at different times
 
@@ -209,9 +210,9 @@ class InferenceNode():
         rospy.loginfo("Running inference node")
         rate = rospy.Rate(10)
 
-        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-            rospy.loginfo("Waiting for gripper to connect")
-            rate.sleep()
+        # while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+        #     rospy.loginfo("Waiting for gripper to connect")
+        #     rate.sleep()
 
         # initialise the gripper via reset and activate messages
         grip_cmd = reset_gripper_msg()

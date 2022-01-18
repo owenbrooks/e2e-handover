@@ -7,6 +7,7 @@ from enum import IntEnum
 import os
 import pandas as pd
 import shutil
+import cv2
 
 class GripperAction(IntEnum):
     DoNothing=0
@@ -72,12 +73,45 @@ def combine_sessions(session_list, out_session_id):
     for in_dir in in_image_dirs:
         shutil.copytree(in_dir, out_image_dir, dirs_exist_ok=True)
 
+def subtract_background(session_id: str):
+    """ Subtracts the backgrounds from the images using opencv's background subtractor """
+    current_dirname = os.path.dirname(__file__)
+    data_dir = os.path.join(current_dirname, '../../data')
+    annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
+    df = pd.read_csv(annotations_file, sep=' ')
+
+    # Create a new folder to store the images with background subtracted
+    orig_image_dir = os.path.join(data_dir, session_id, 'images',)
+    new_image_dir = os.path.join(data_dir, session_id + '_subtracted', 'images')
+    if not os.path.exists(new_image_dir):
+        os.makedirs(new_image_dir)
+
+    # Copy csv file with annotations to the new folder
+    csv_copy_path = os.path.join(data_dir, session_id + '_subtracted', session_id + '_subtracted.csv')
+    df.to_csv(csv_copy_path, sep=' ', index=False)
+
+    background_subtractor = cv2.BackgroundSubtractor()
+
+    for i in range(len(df)):
+        orig_image_path = os.path.join(orig_image_dir, df.iloc[i]['image_id'])
+        img = cv2.imread(orig_image_path)
+
+        foreground_mask = background_subtractor.apply(img)
+        img_foreground = img[foreground_mask]
+        print(img_foreground.shape)
+        new_image_path = os.path.join(new_image_dir, df.iloc[i]['image_id'])
+
+        cv2.imwrite(new_image_path, foreground_mask)
+        # cv2.imshow('mask', foreground_mask)
+        # cv2.waitKey(0)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--session', type=str)
     parser.add_argument('--static-index', default=0, type=int)
     parser.add_argument('--tcount', action='store_true')
     parser.add_argument('--calibf', action='store_true')
+    parser.add_argument('--subt', action='store_true')
 
     subparsers = parser.add_subparsers(dest='subcommand')
     parser_combine = subparsers.add_parser('combine')
@@ -90,6 +124,9 @@ if __name__ == "__main__":
 
     if args.calibf:
         calibrate_forces(args.session, args.static_index)
+
+    if args.subt:
+        subtract_background(args.session)
 
     if args.subcommand == 'combine':
         combine_sessions(args.session_list, args.session)
