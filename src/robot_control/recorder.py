@@ -17,12 +17,14 @@ class Recorder():
     def __init__(self, record_tactile):
         # self.twist_sub = rospy.Subscriber('/twist_controller/command', Twist, self.force_callback)
         self.twist_sub = rospy.Subscriber('/twist_cmd_raw', Twist, self.twist_callback)
+        self.filtered_twist_sub = rospy.Subscriber('/twist_cmd_filtered', Twist, self.filtered_twist_callback)
 
         self.is_recording = False
         self.session_id = ""
         self.session_image_count = 0
 
         self.twist_array = 6*[0.0]
+        self.filtered_twist_array = 6*[0.0]
 
         self.record_tactile = record_tactile
 
@@ -35,6 +37,9 @@ class Recorder():
 
     def twist_callback(self, twist_msg):
         self.twist_array = [twist_msg.linear.x, twist_msg.linear.y, twist_msg.linear.z, twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z]
+    
+    def filtered_twist_callback(self, twist_msg):
+        self.filtered_twist_array = [twist_msg.linear.x, twist_msg.linear.y, twist_msg.linear.z, twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z]
 
     def record_row(self, image, wrench, gripper_is_open, tactile_readings=[]):
         if self.is_recording:
@@ -49,7 +54,7 @@ class Recorder():
             csv_path = os.path.join(current_dirname, '../../data', self.session_id, self.session_id + '.csv')
             with open(csv_path, 'a+') as csvfile:
                 datawriter = csv.writer(csvfile, delimiter=' ')
-                row = [image_name, gripper_is_open] + wrench.tolist() + self.twist_array
+                row = [image_name, gripper_is_open] + wrench.tolist() + self.twist_array + self.filtered_twist_array
 
                 if self.record_tactile:
                     row += tactile_readings
@@ -76,7 +81,8 @@ class Recorder():
                 
                 wrench_header = ['fx', 'fy', 'fz', 'mx', 'my', 'mz']
                 twist_header = ['vx', 'vy', 'vz', 'wx', 'wy', 'wz']
-                header = ['image_id', 'gripper_is_open'] + wrench_header + twist_header
+                filtered_twist_header = ['vx_filt', 'vy_filt', 'vz_filt', 'wx_filt', 'wy_filt', 'wz_filt']
+                header = ['image_id', 'gripper_is_open'] + wrench_header + twist_header + filtered_twist_header
                 if self.record_tactile:
                     header += tactile.papillarray_keys
             
