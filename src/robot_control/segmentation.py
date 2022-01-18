@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
@@ -25,6 +26,22 @@ class Segmentor():
         point_rend_result = v.draw_instance_predictions(outputs["instances"].to("cpu")).get_image()
 
         return point_rend_result[:, :, ::-1]
+
+    def person_binary_inference(self, im):
+        outputs = self.predictor(im)
+
+        fields = outputs['instances'].get_fields()
+
+        people = fields['pred_classes'] == 0
+        confident_people = fields['scores'][people] > 0.5
+        people_masks = fields['pred_masks'][people][confident_people]
+
+        numpy_masks = people_masks.cpu().numpy()
+
+        binary_mask = np.bitwise_or.reduce(numpy_masks, axis=0)
+
+        return binary_mask
+
 
 if __name__ == "__main__":
     im = cv2.imread("input.png")

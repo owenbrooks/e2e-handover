@@ -10,7 +10,7 @@ import torch
 
 def main(session_id, model_name, should_segment):
     current_dirname = os.path.dirname(__file__)
-    data_dir = os.path.join(current_dirname, '../../data')
+    data_dir = os.path.join(current_dirname, '../../../data')
     annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
     df = pd.read_csv(annotations_file, sep=' ')
 
@@ -23,7 +23,7 @@ def main(session_id, model_name, should_segment):
         # Create network and load weights
         net = model.ResNet()
         current_dirname = os.path.dirname(__file__)
-        model_path = os.path.join(current_dirname, '../../models', model_name + '.pt')
+        model_path = os.path.join(current_dirname, '../../../models', model_name + '.pt')
         net.load_state_dict(torch.load(model_path))
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print("Using device: " + str(device))
@@ -37,26 +37,29 @@ def main(session_id, model_name, should_segment):
         img = cv2.imread(image_path)
 
         if should_segment:
-            img = segmentor.inference(img)
+            binary_mask = segmentor.person_binary_inference(img)
+            img = np.array(binary_mask*255, dtype=np.uint8)
+            # img = img[binary_mask]
 
-        img_t = prepare_image(img).unsqueeze_(0).to(device)
-        wrench_array = row[['fx', 'fy', 'fz', 'mx', 'my', 'mz']].values.astype(np.float32)
-        forces_t = torch.autograd.Variable(torch.FloatTensor(wrench_array)).unsqueeze_(0).to(device)
+        else:
+            img_t = prepare_image(img).unsqueeze_(0).to(device)
+            wrench_array = row[['fx', 'fy', 'fz', 'mx', 'my', 'mz']].values.astype(np.float32)
+            forces_t = torch.autograd.Variable(torch.FloatTensor(wrench_array)).unsqueeze_(0).to(device)
 
-        # forward + backward + optimize
-        output_t = net(img_t, forces_t)
+            # forward + backward + optimize
+            output_t = net(img_t, forces_t)
 
-        image_number_string = str(index) + '/' + str(len(df.index))
-        model_output = output_t.cpu().detach().numpy()[0][0]
-        model_open = model_output > 0.5
+            image_number_string = str(index) + '/' + str(len(df.index))
+            model_output = output_t.cpu().detach().numpy()[0][0]
+            model_open = model_output > 0.5
 
-        # cv2.putText(img, image_number_string, (0, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
-        # cv2.putText(img, str(model_output), (500, 50), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(img, image_number_string, (0, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(img, str(model_output), (500, 50), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
 
-        ground_truth_state = 'open' if row['gripper_is_open'] else 'closed'
-        model_state = 'open' if model_open else 'closed'
-        # cv2.putText(img, ground_truth_state, (550, 420), font, 0.8, (255, 255, 255), 1, cv2.LINE_AA)
-        # cv2.putText(img, model_state, (550, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
+            ground_truth_state = 'open' if row['gripper_is_open'] else 'closed'
+            model_state = 'open' if model_open else 'closed'
+            cv2.putText(img, ground_truth_state, (550, 420), font, 0.8, (255, 255, 255), 1, cv2.LINE_AA)
+            cv2.putText(img, model_state, (550, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
 
         cv2.imshow('Inference ', img)
         
