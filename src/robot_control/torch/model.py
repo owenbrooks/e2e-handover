@@ -3,11 +3,7 @@
 import torch
 import torch.nn as nn
 import math
-import torchvision
-import torch.utils.model_zoo as model_zoo
-import time
-import numpy as np
-import cv2
+import os
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -51,10 +47,12 @@ class BasicBlock(nn.Module):
 class ResNet(nn.Module):
 
     def __init__(self, block = BasicBlock, layers = [2,2,2,2]):
+        input_channels = 4 if os.environ.get('include_segmentation') else 3
+
         self.inplanes = 64
         super(ResNet, self).__init__()
-        self.bn0 = nn.BatchNorm2d(3)
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,bias=False)
+        self.bn0 = nn.BatchNorm2d(input_channels)
+        self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=7, stride=2, padding=3,bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.tanh = nn.Tanh()

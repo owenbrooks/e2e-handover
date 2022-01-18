@@ -4,6 +4,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 import torch
+import numpy as np
+import os
 
 class DeepHandoverDataset(Dataset):
     def __init__(self, session_id, transform=None, target_transform=None):
@@ -14,12 +16,22 @@ class DeepHandoverDataset(Dataset):
         self.session_id = session_id
         self.transform = transform
         self.target_transform = target_transform
+        self.include_segmentation = os.environ.get('include_segmentation')
+
+        if self.include_segmentation:
+            print('Including segmentation')
+        else:
+            print('Not including segmentation')
 
         if self.transform == None:
+            # first three values are standard for ResNet
+            mean = [0.485, 0.456, 0.406, 0.5] if self.include_segmentation else [0.485, 0.456, 0.406]
+            std = [0.229, 0.224, 0.225, 0.225] if self.include_segmentation else [0.229, 0.224, 0.225]
+
             self.transform = transforms.Compose([
                 transforms.Resize((224,224)),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
+                transforms.Normalize(mean=mean,std=std)
             ])
 
     def __len__(self):
@@ -28,11 +40,23 @@ class DeepHandoverDataset(Dataset):
     def __getitem__(self, idx):
         current_dirname = os.path.dirname(__file__)
         data_dir = os.path.join(current_dirname, '../../../data')
-        img_path = os.path.join(data_dir, self.session_id, 'images', self.img_labels.iloc[idx, 0])
+        image_name = self.img_labels.iloc[idx, 0]
+        img_path = os.path.join(data_dir, self.session_id, 'images', image_name)
         image = Image.open(img_path).convert('RGB') # this RGB conversion means it works on the binary segmented images too
-        label = self.img_labels.iloc[idx, 1]
 
-        image_tensor = self.transform(image)
+        if self.include_segmentation:
+            # stack segmented image to create a 4D image
+            segmented_image_name = image_name.replace('.png', '_seg.png')
+            segmented_image_path = os.path.join(data_dir, self.session_id, 'images', segmented_image_name)
+            segmented_image = Image.open(segmented_image_path).convert()
+            rgb_np = np.asarray(image)
+            seg_np = np.asarray(segmented_image)
+            image_np = np.stack([rgb_np[:,:,0], rgb_np[:,:,1], rgb_np[:,:,2], seg_np], axis=-1)
+            stacked_image = Image.fromarray(image_np)
+
+            image_tensor = self.transform(stacked_image)
+        else:
+            image_tensor = self.transform(image)
 
         force_tensor = torch.Tensor([
             self.img_labels["fx"][idx],
@@ -46,11 +70,6 @@ class DeepHandoverDataset(Dataset):
         gripper_state_tensor = torch.Tensor([
             self.img_labels["gripper_is_open"][idx]
         ])
-
-        if self.transform:
-            image = self.transform(image)
-        if self.target_transform:
-            label = self.target_transform(label)
 
         sample = {}
         sample['image'] = image_tensor

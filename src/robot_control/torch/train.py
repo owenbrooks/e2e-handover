@@ -27,9 +27,9 @@ def main(args):
 
     # Load pre-trained resnet18 model weights
     model = ResNet()
-    resnet18_url = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
-    state_dict = torch.hub.load_state_dict_from_url(resnet18_url)
-    model.load_partial_state_dict(state_dict)
+    # resnet18_url = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
+    # state_dict = torch.hub.load_state_dict_from_url(resnet18_url)
+    # model.load_partial_state_dict(state_dict)
 
     # Set device to GPU if available, otherwise CPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
