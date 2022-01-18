@@ -43,7 +43,7 @@ def train(model, train_loader, test_loader, device, args):
 
     # Create directory and path for saving model
     current_dirname = os.path.dirname(__file__)
-    model_dir = os.path.join(current_dirname, '../../models')
+    model_dir = os.path.join(current_dirname, '../../../models')
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
     model_path = os.path.join(model_dir, args.session + '.pt')

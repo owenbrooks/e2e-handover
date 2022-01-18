@@ -8,7 +8,7 @@ import torch
 class DeepHandoverDataset(Dataset):
     def __init__(self, session_id, transform=None, target_transform=None):
         current_dirname = os.path.dirname(__file__)
-        data_dir = os.path.join(current_dirname, '../../data')
+        data_dir = os.path.join(current_dirname, '../../../data')
         annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
         self.img_labels = pd.read_csv(annotations_file, sep=' ')
         self.session_id = session_id
@@ -27,9 +27,9 @@ class DeepHandoverDataset(Dataset):
 
     def __getitem__(self, idx):
         current_dirname = os.path.dirname(__file__)
-        data_dir = os.path.join(current_dirname, '../../data')
+        data_dir = os.path.join(current_dirname, '../../../data')
         img_path = os.path.join(data_dir, self.session_id, 'images', self.img_labels.iloc[idx, 0])
-        image = Image.open(img_path)
+        image = Image.open(img_path).convert('RGB') # this RGB conversion means it works on the binary segmented images too
         label = self.img_labels.iloc[idx, 1]
 
         image_tensor = self.transform(image)
