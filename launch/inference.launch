@@ -1,14 +1,12 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="model_name" default="2021-12-14-23_calib" />
+  <arg name="model_name" default="2021-12-14-23_calib_best.pt" />
   <param name="model_name" value="$(arg model_name)" />
   <node name="inference" pkg="robot_control" type="inference.py" output="screen"/>
   <node name="rq_sensor" pkg="robotiq_ft_sensor" type="rq_sensor" output="screen">
     <param name="serial_id" value="ttyUSB1" />
   </node>
   <node name="Robotiq2FGripperRtuNode" pkg="robotiq_2f_gripper_control" type="Robotiq2FGripperRtuNode.py" args="/dev/ttyUSB0" output="screen"/>
-  <node name="joy" pkg="joy" type="joy_node" output="screen"/>
   <include file="$(find realsense2_camera)/launch/rs_camera.launch" pass_all_args="true"/>
-  <node name="joystick_twist" pkg="robot_control" type="joystick_twist.py" output="screen"/>
-  <!-- <node name="twist_filter" pkg="robot_control" type="twist_filter.py" output="screen"/> -->
+  <include file="$(find robot_control)/launch/joystick.launch" pass_all_args="true"/>
 </launch>

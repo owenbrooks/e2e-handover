@@ -49,7 +49,7 @@ As the docker container doesn't have CUDA support, this should be done outside t
 - [Robotiq drivers (updated to work with ROS Noetic)](https://github.com/jr-robotics/robotiq.git) (Clone into `src` directory)
 - [Realsense Camera ROS Drivers](https://github.com/IntelRealSense/realsense-ros)
 
-Aside from ROS itself, these dependencies can be downloaded automatically by `vcstool` (install with `sudo apt install python3-vcstool`), then go to `src` directory and run `vcs import < e2e.rosinstall`.
+Aside from ROS itself, these dependencies can be downloaded automatically by `vcstool` (install with `sudo apt install python3-vcstool`), then go to `catkin_ws/src` directory and run `vcs import < e2e-handover/e2e.rosinstall`.
 
 To update the dependency list when adding more packages in the future, use `vcs export > e2e.rosinstall`.
 
@@ -87,3 +87,7 @@ Running in gazebo
 
 Combine datasets:
 `python3 src/robot_control/data_prep.py --session 2021-12-17-tactile combine -l 2021-12-17-00:55:09 2021-12-17-01:01:44`
+
+## Pairing controller
+- For DualShock PS4 controller, press and hold both the Share and PS buttons.
+- Open Bluetooth settings and click on 'Wireless controller' to pair.

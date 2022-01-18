@@ -1,5 +1,4 @@
 from torchvision import transforms
-import cv2
 
 def prepare_image(img):
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-from dataset import DeepHandoverDataset
+from robot_control.torch.dataset import DeepHandoverDataset
 import torch
 import torch.nn as nn
-from model import ResNet
+from robot_control.torch.model import ResNet
 import torch.optim as optim
 import numpy as np
 from torch.utils.data import random_split 
@@ -22,8 +22,8 @@ def main(args):
     test_length = len(dataset) - train_length
     train_data, test_data = random_split(dataset, [train_length, test_length], generator=torch.Generator().manual_seed(42))
 
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, num_workers=args.num_workers)
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, num_workers=args.num_workers, pin_memory=True)
 
     # Load pre-trained resnet18 model weights
     model = ResNet()
