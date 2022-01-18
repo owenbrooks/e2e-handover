@@ -8,6 +8,8 @@ import os
 import pandas as pd
 import shutil
 import cv2
+from robot_control.segmentation import Segmentor
+import numpy as np
 
 class GripperAction(IntEnum):
     DoNothing=0
@@ -16,7 +18,7 @@ class GripperAction(IntEnum):
 
 def transition_count(session_id: str):
     current_dirname = os.path.dirname(__file__)
-    data_dir = os.path.join(current_dirname, '../../data')
+    data_dir = os.path.join(current_dirname, '../../../data')
     annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
     df = pd.read_csv(annotations_file, sep=' ')
 
@@ -40,7 +42,7 @@ def calibrate_forces(session_id: str, static_index: int):
     since the force readings seem to change over the day, potentially when the robot is 
     rebooted. """
     current_dirname = os.path.dirname(__file__)
-    data_dir = os.path.join(current_dirname, '../../data')
+    data_dir = os.path.join(current_dirname, '../../../data')
     annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
     df = pd.read_csv(annotations_file, sep=' ')
     
@@ -53,7 +55,7 @@ def calibrate_forces(session_id: str, static_index: int):
 
 def combine_sessions(session_list, out_session_id):
     current_dirname = os.path.dirname(__file__)
-    data_dir = os.path.join(current_dirname, '../../data')
+    data_dir = os.path.join(current_dirname, '../../../data')
     out_session_dir = os.path.join(data_dir, out_session_id)
     out_annotations_path = os.path.join(out_session_dir, out_session_id + '.csv')
 
@@ -73,35 +75,34 @@ def combine_sessions(session_list, out_session_id):
     for in_dir in in_image_dirs:
         shutil.copytree(in_dir, out_image_dir, dirs_exist_ok=True)
 
-def subtract_background(session_id: str):
-    """ Subtracts the backgrounds from the images using opencv's background subtractor """
+def segment(session_id: str):
+    """ Performs segmentation to convert images to a binary mask of person/non-person """
     current_dirname = os.path.dirname(__file__)
-    data_dir = os.path.join(current_dirname, '../../data')
+    data_dir = os.path.join(current_dirname, '../../../data')
     annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
     df = pd.read_csv(annotations_file, sep=' ')
 
-    # Create a new folder to store the images with background subtracted
+    # Create a new folder to store the binary images with background subtracted
     orig_image_dir = os.path.join(data_dir, session_id, 'images',)
-    new_image_dir = os.path.join(data_dir, session_id + '_subtracted', 'images')
+    new_image_dir = os.path.join(data_dir, session_id + '_seg', 'images')
     if not os.path.exists(new_image_dir):
         os.makedirs(new_image_dir)
 
     # Copy csv file with annotations to the new folder
-    csv_copy_path = os.path.join(data_dir, session_id + '_subtracted', session_id + '_subtracted.csv')
+    csv_copy_path = os.path.join(data_dir, session_id + '_seg', session_id + '_seg.csv')
     df.to_csv(csv_copy_path, sep=' ', index=False)
 
-    background_subtractor = cv2.BackgroundSubtractor()
+    segmentor = Segmentor()
 
     for i in range(len(df)):
         orig_image_path = os.path.join(orig_image_dir, df.iloc[i]['image_id'])
         img = cv2.imread(orig_image_path)
 
-        foreground_mask = background_subtractor.apply(img)
-        img_foreground = img[foreground_mask]
-        print(img_foreground.shape)
+        foreground_mask = segmentor.person_binary_inference(img)
+        new_image = np.array(foreground_mask*255, dtype=np.uint8)
         new_image_path = os.path.join(new_image_dir, df.iloc[i]['image_id'])
 
-        cv2.imwrite(new_image_path, foreground_mask)
+        cv2.imwrite(new_image_path, new_image)
         # cv2.imshow('mask', foreground_mask)
         # cv2.waitKey(0)
 
@@ -111,7 +112,7 @@ if __name__ == "__main__":
     parser.add_argument('--static-index', default=0, type=int)
     parser.add_argument('--tcount', action='store_true')
     parser.add_argument('--calibf', action='store_true')
-    parser.add_argument('--subt', action='store_true')
+    parser.add_argument('--segment', action='store_true')
 
     subparsers = parser.add_subparsers(dest='subcommand')
     parser_combine = subparsers.add_parser('combine')
@@ -125,8 +126,8 @@ if __name__ == "__main__":
     if args.calibf:
         calibrate_forces(args.session, args.static_index)
 
-    if args.subt:
-        subtract_background(args.session)
+    if args.segment:
+        segment(args.session)
 
     if args.subcommand == 'combine':
         combine_sessions(args.session_list, args.session)
