@@ -47,7 +47,7 @@ class BasicBlock(nn.Module):
 class ResNet(nn.Module):
 
     def __init__(self, block = BasicBlock, layers = [2,2,2,2]):
-        input_channels = 4 if os.environ.get('include_segmentation') else 3
+        input_channels = 4 if os.environ.get('use_segmentation') else 3
 
         self.inplanes = 64
         super(ResNet, self).__init__()

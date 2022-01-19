@@ -23,7 +23,7 @@ def main(session_id, model_name, should_segment):
         # Create network and load weights
         net = model.ResNet()
         current_dirname = os.path.dirname(__file__)
-        model_path = os.path.join(current_dirname, '../../../models', model_name + '.pt')
+        model_path = os.path.join(current_dirname, '../../../models', model_name)
         net.load_state_dict(torch.load(model_path))
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print("Using device: " + str(device))
@@ -74,7 +74,7 @@ def main(session_id, model_name, should_segment):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--ground-truth', action='store_true')
-    parser.add_argument('--model-name', type=str, default='2021-12-14-23_calib')
+    parser.add_argument('--model-name', type=str, default='2021-12-14-23_calib.pt')
     parser.add_argument('--session', type=str, default='2021-12-14-23_calib')
     parser.add_argument('--segment', action='store_true')
     args = parser.parse_args()
