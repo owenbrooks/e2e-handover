@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 import json
 import numpy as np
 import os
@@ -68,9 +69,11 @@ def main(session_id, model_name, test_fraction):
     recall = tp / (tp + fn)
     f_score = 2*(precision*recall)/(precision+recall)
 
+    timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
     stats = {
         'model_name': model_name, 
-        'data_session_id': session_id, 
+        'data_session_id': session_id,
+        'test_timestamp': timestamp ,
         'test_fraction': test_fraction,
         'using_segmentation': os.environ.get('use_segmentation') is not None,
         'accuracy': accuracy,
