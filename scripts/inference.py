@@ -65,12 +65,15 @@ class InferenceNode():
         self.force_sub = rospy.Subscriber('robotiq_ft_wrench', WrenchStamped, self.force_callback)
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
         self.image_sub = rospy.Subscriber('/camera/color/image_raw', Image, self.image_callback)
+        self.image_sub_2 = rospy.Subscriber('/camera2/color/image_raw', Image, self.image_callback_2)
         self.joy_sub = rospy.Subscriber('joy', Joy, self.joy_callback) # joystick control
         self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
 
         if use_tactile:
             self.tactile_sub = rospy.Subscriber('/hub_0/sensor_0', SensorState, self.tactile_callback)
+            self.tactile_sub_2 = rospy.Subscriber('/hub_0/sensor_1', SensorState, self.tactile_callback_2)
             self.tactile_readings = [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
+            self.tactile_readings_2 = [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
 
         self.cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images
 
@@ -116,6 +119,10 @@ class InferenceNode():
         value_list = tactile.sensor_state_to_list(sensor_msg)
         self.tactile_readings = value_list
 
+    def tactile_callback_2(self, sensor_msg):
+        value_list = tactile.sensor_state_to_list(sensor_msg)
+        self.tactile_readings_2 = value_list
+
     def force_callback(self, wrench_msg):
         self.abs_z_force = abs(self.base_wrench_array[2] - wrench_msg.wrench.force.z)
 
@@ -157,20 +164,28 @@ class InferenceNode():
             if key == keyboard.Key.shift or key == keyboard.Key.shift_r: # space bar to open/close gripper
                 self.toggle_gripper()
 
-    def image_callback(self, image_msg):
+    def image_callback_2(self, image_msg):
         try:
-            img_cv2 = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
+            self.img_2 = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
         except CvBridgeError as e:
             rospy.logerr(e)
 
-        if self.recorder.is_recording:
+    def image_callback(self, image_msg):
+        try:
+            img = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
+        except CvBridgeError as e:
+            rospy.logerr(e)
+
+        if self.recorder.is_recording and self.img_2 is not None:
             gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
-            self.recorder.record_row(img_cv2, self.raw_wrench_reading, gripper_is_open)
+            self.recorder.record_row(img, self.img_2, self.raw_wrench_reading, 
+                gripper_is_open, self.tactile_readings, self.tactile_readings_2
+            )
 
         if self.is_inference_active and self.net is not None:
-            img_cv2 = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
-            img_cv2 = img_cv2[:, :, ::-1]
-            img_t = prepare_image(img_cv2).unsqueeze_(0).to(self.device)
+            img = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
+            img = img[:, :, ::-1]
+            img_t = prepare_image(img).unsqueeze_(0).to(self.device)
             forces_t = torch.autograd.Variable(torch.FloatTensor(self.calib_wrench_array)).unsqueeze_(0).to(self.device)
 
             # forward + backward + optimize
@@ -210,9 +225,9 @@ class InferenceNode():
         rospy.loginfo("Running inference node")
         rate = rospy.Rate(10)
 
-        # while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-        #     rospy.loginfo("Waiting for gripper to connect")
-        #     rate.sleep()
+        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+            rospy.loginfo("Waiting for gripper to connect")
+            rate.sleep()
 
         # initialise the gripper via reset and activate messages
         grip_cmd = reset_gripper_msg()

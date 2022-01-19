@@ -7,7 +7,6 @@ import numpy as np
 import os
 from robot_control import tactile
 import rospy
-from sensor_msgs.msg import Image
 
 # Class to record data 
 # Data is stored in 'data/${SESSION_ID}' folder, where SESSION_ID is unique timestamp
@@ -18,7 +17,6 @@ class Recorder():
     def __init__(self, record_tactile):
         self.twist_sub = rospy.Subscriber('/twist_cmd_raw', Twist, self.twist_callback)
         self.filtered_twist_sub = rospy.Subscriber('/twist_cmd_filtered', Twist, self.filtered_twist_callback)
-        self.second_image_sub = rospy.Subscriber('/camera2/color/image_raw', Image, self.image_callback)
 
         self.is_recording = False
         self.session_id = ""
@@ -26,8 +24,6 @@ class Recorder():
 
         self.twist_array = 6*[0.0]
         self.filtered_twist_array = 6*[0.0]
-
-        self.second_image = None
 
         self.record_tactile = record_tactile
 
@@ -44,8 +40,8 @@ class Recorder():
     def filtered_twist_callback(self, twist_msg):
         self.filtered_twist_array = [twist_msg.linear.x, twist_msg.linear.y, twist_msg.linear.z, twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z]
 
-    def record_row(self, image, wrench, gripper_is_open, tactile_readings=[]):
-        if self.is_recording and self.second_image is not None:
+    def record_row(self, image, image_2, wrench, gripper_is_open, tactile_readings=[], tactile_readings_2=[]):
+        if self.is_recording:
             # Save image as png
             current_dirname = os.path.dirname(__file__)
             image_name = f"{self.session_image_count}_{self.session_id}.png"
@@ -55,7 +51,7 @@ class Recorder():
 
             second_image_name = f"{self.session_image_count}_{self.session_id}_second.png"
             second_image_path = os.path.join(current_dirname, '../../data', self.session_id, 'images', second_image_name)
-            cv2.imwrite(second_image_path, self.second_image)
+            cv2.imwrite(second_image_path, image_2)
 
             # Append numerical data and annotation to the session csv
             csv_path = os.path.join(current_dirname, '../../data', self.session_id, self.session_id + '.csv')
@@ -65,6 +61,7 @@ class Recorder():
 
                 if self.record_tactile:
                     row += tactile_readings
+                    row += tactile_readings_2
 
                 datawriter.writerow(row)
 
