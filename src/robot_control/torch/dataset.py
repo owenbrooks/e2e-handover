@@ -46,8 +46,7 @@ class DeepHandoverDataset(Dataset):
 
         if self.include_segmentation:
             # stack segmented image to create a 4D image
-            segmented_image_name = image_name.replace('.png', '_seg.png')
-            segmented_image_path = os.path.join(data_dir, self.session_id, 'images', segmented_image_name)
+            segmented_image_path = os.path.join(data_dir, self.session_id, 'seg_images', image_name)
             segmented_image = Image.open(segmented_image_path).convert()
             rgb_np = np.asarray(image)
             seg_np = np.asarray(segmented_image)
