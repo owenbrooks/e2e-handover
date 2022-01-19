@@ -7,6 +7,9 @@
     <param name="serial_id" value="ttyUSB1" />
   </node>
   <node name="Robotiq2FGripperRtuNode" pkg="robotiq_2f_gripper_control" type="Robotiq2FGripperRtuNode.py" args="/dev/ttyUSB0" output="screen"/>
-  <include file="$(find realsense2_camera)/launch/rs_camera.launch" pass_all_args="true"/>
+  <include file="$(find realsense2_camera)/launch/rs_multiple_devices.launch">
+    <arg name="serial_no_camera1" value=""/>
+    <arg name="serial_no_camera2" value=""/>
+  </include>
   <include file="$(find robot_control)/launch/joystick.launch" pass_all_args="true"/>
 </launch>

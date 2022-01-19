@@ -1,12 +1,13 @@
 #!/usr/bin/env python
-import os
 import csv
-import rospy
-from geometry_msgs.msg import Twist
-from datetime import datetime
 import cv2
+from datetime import datetime
+from geometry_msgs.msg import Twist
 import numpy as np
+import os
 from robot_control import tactile
+import rospy
+from sensor_msgs.msg import Image
 
 # Class to record data 
 # Data is stored in 'data/${SESSION_ID}' folder, where SESSION_ID is unique timestamp
@@ -15,9 +16,9 @@ from robot_control import tactile
 
 class Recorder():
     def __init__(self, record_tactile):
-        # self.twist_sub = rospy.Subscriber('/twist_controller/command', Twist, self.force_callback)
         self.twist_sub = rospy.Subscriber('/twist_cmd_raw', Twist, self.twist_callback)
         self.filtered_twist_sub = rospy.Subscriber('/twist_cmd_filtered', Twist, self.filtered_twist_callback)
+        self.second_image_sub = rospy.Subscriber('/camera2/color/image_raw', Image, self.image_callback)
 
         self.is_recording = False
         self.session_id = ""
@@ -25,6 +26,8 @@ class Recorder():
 
         self.twist_array = 6*[0.0]
         self.filtered_twist_array = 6*[0.0]
+
+        self.second_image = None
 
         self.record_tactile = record_tactile
 
@@ -42,19 +45,23 @@ class Recorder():
         self.filtered_twist_array = [twist_msg.linear.x, twist_msg.linear.y, twist_msg.linear.z, twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z]
 
     def record_row(self, image, wrench, gripper_is_open, tactile_readings=[]):
-        if self.is_recording:
+        if self.is_recording and self.second_image is not None:
             # Save image as png
             current_dirname = os.path.dirname(__file__)
-            image_name = str(self.session_image_count) + '_' + self.session_id + '.png'
+            image_name = f"{self.session_image_count}_{self.session_id}.png"
             self.session_image_count += 1
             image_path = os.path.join(current_dirname, '../../data', self.session_id, 'images', image_name)
             cv2.imwrite(image_path, image)
+
+            second_image_name = f"{self.session_image_count}_{self.session_id}_second.png"
+            second_image_path = os.path.join(current_dirname, '../../data', self.session_id, 'images', second_image_name)
+            cv2.imwrite(second_image_path, self.second_image)
 
             # Append numerical data and annotation to the session csv
             csv_path = os.path.join(current_dirname, '../../data', self.session_id, self.session_id + '.csv')
             with open(csv_path, 'a+') as csvfile:
                 datawriter = csv.writer(csvfile, delimiter=' ')
-                row = [image_name, gripper_is_open] + wrench.tolist() + self.twist_array + self.filtered_twist_array
+                row = [image_name, second_image_name, gripper_is_open] + wrench.tolist() + self.twist_array + self.filtered_twist_array
 
                 if self.record_tactile:
                     row += tactile_readings
@@ -82,7 +89,7 @@ class Recorder():
                 wrench_header = ['fx', 'fy', 'fz', 'mx', 'my', 'mz']
                 twist_header = ['vx', 'vy', 'vz', 'wx', 'wy', 'wz']
                 filtered_twist_header = ['vx_filt', 'vy_filt', 'vz_filt', 'wx_filt', 'wy_filt', 'wz_filt']
-                header = ['image_id', 'gripper_is_open'] + wrench_header + twist_header + filtered_twist_header
+                header = ['image_id', 'second_image_id', 'gripper_is_open'] + wrench_header + twist_header + filtered_twist_header
                 if self.record_tactile:
                     header += tactile.papillarray_keys
             
