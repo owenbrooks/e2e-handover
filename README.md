@@ -57,6 +57,10 @@ Ensure pip is installed via `sudo apt-get install python3-pip`.
 
 Install additional dependencies by running `rosdep install --from-paths src --ignore-src -r -y` from your catkin workspace.
 
+# Managing data and models
+
+- Install [dvc](https://dvc.org/doc/install/linux)
+
 # Miscellaneous commands for reference
 Bring up communication with the robot:
 `roslaunch ur_robot_driver ur5_bringup.launch robot_ip:=10.0.0.2`
