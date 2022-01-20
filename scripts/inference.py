@@ -161,7 +161,7 @@ class InferenceNode():
             if char == 'i': # i key to start/stop inference controlling the gripper
                 self.is_inference_active = not self.is_inference_active
         except AttributeError: # special keys (ctrl, alt, etc.) will cause this exception
-            if key == keyboard.Key.shift or key == keyboard.Key.shift_r: # space bar to open/close gripper
+            if key == keyboard.Key.shift or key == keyboard.Key.shift_r:
                 self.toggle_gripper()
 
     def image_callback_2(self, image_msg):

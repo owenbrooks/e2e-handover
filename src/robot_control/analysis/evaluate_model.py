@@ -82,11 +82,13 @@ def main(session_id, model_name, test_fraction):
     print(json.dumps(stats, indent=4))
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--model-name', type=str, default='2021-12-14-23_calib.pt')
-    parser.add_argument('--session', type=str, default='2021-12-14-23_calib')
-    parser.add_argument('--test-fraction', type=float, default=0.2)    
+    parser = argparse.ArgumentParser('Evaluate model on dataset')
+    parser.add_argument('--model-name', type=str, required=True, help='model file stored in top level models/ e.g. 2021-12-14-23.pt')
+    parser.add_argument('--session', type=str, required=True, help='session id stored in top level data/ e.g. 2021-12-14-23_calib_short')
+    parser.add_argument('--test-fraction', type=float, default=0.2)  
+
     args = parser.parse_args()
+
     main(args.session, args.model_name, args.test_fraction)
     # example:
     # python3 evaluate_model.py --model-name 2021-12-14-23.pt --session 2021-12-14-23_calib_short --test-fraction 0.1
