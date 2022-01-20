@@ -7,18 +7,18 @@ from geometry_msgs.msg import WrenchStamped
 from sensor_msgs.msg import Joy, Image
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 from enum import Enum
-from robot_control.gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
+from e2e_handover.gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
 from cv_bridge import CvBridge, CvBridgeError
 from pynput import keyboard
-from robot_control.train import model
+from e2e_handover.train import model
 import torch
-from robot_control.image_ops import prepare_image
-from robot_control.recorder import Recorder
+from e2e_handover.image_ops import prepare_image
+from e2e_handover.recorder import Recorder
 
 use_tactile = True
 try:
     from papillarray_ros_v2.msg import SensorState
-    from robot_control import tactile
+    from e2e_handover import tactile
 except ImportError:
     use_tactile = False
     print("Couldn't import papillarray")

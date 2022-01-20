@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 import os
 import argparse
-from robot_control.train import model
-from robot_control.image_ops import prepare_image
-from robot_control.segmentation import Segmentor
+from e2e_handover.train import model
+from e2e_handover.image_ops import prepare_image
+from e2e_handover.segmentation import Segmentor
 import torch
 
 def main(session_id, model_name, should_segment):

@@ -8,7 +8,7 @@ import os
 import pandas as pd
 import shutil
 import cv2
-from robot_control.segmentation import Segmentor
+from e2e_handover.segmentation import Segmentor
 import numpy as np
 
 class GripperAction(IntEnum):

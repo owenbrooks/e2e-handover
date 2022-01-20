@@ -13,5 +13,5 @@
   <arg name="safety_k_position" default="20" doc="Used to set k position in the safety controller" />
 
   <!-- use common launch file and pass all arguments to it -->
-  <include file="$(find robot_control)/launch/load_ur.launch" pass_all_args="true"/>
+  <include file="$(find e2e_handover)/launch/load_ur.launch" pass_all_args="true"/>
 </launch>

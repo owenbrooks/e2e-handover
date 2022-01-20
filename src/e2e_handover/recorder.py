@@ -5,7 +5,7 @@ from datetime import datetime
 from geometry_msgs.msg import Twist
 import numpy as np
 import os
-from robot_control import tactile
+from e2e_handover import tactile
 import rospy
 
 # Class to record data 

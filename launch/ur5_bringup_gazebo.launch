@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
     <include file="$(find ur_gazebo)/launch/ur5_bringup.launch">
-        <arg name="robot_description_file" value="$(find robot_control)/launch/load_ur5_gazebo.launch" />
+        <arg name="robot_description_file" value="$(find e2e_handover)/launch/load_ur5_gazebo.launch" />
     </include>
 </launch>

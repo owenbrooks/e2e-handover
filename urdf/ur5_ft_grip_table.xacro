@@ -17,7 +17,7 @@
     </joint>
 
     <!-- Table representing the boundary of the workspace -->
-    <xacro:include filename="$(find robot_control)/urdf/table.xacro" />
+    <xacro:include filename="$(find e2e_handover)/urdf/table.xacro" />
     <xacro:table />
 
     <!-- UR5 robot (parameters should be defined in launch files)-->

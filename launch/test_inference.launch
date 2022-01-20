@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <node name="inference" pkg="robot_control" type="inference.py" output="screen">
+  <node name="inference" pkg="e2e_handover" type="inference.py" output="screen">
     <remap from="/camera/color/image_raw" to="/image_publisher/image_raw" />
   </node>
   <node name="rq_sensor" pkg="robotiq_ft_sensor" type="rq_sensor" output="screen">
@@ -8,5 +8,5 @@
   </node>
   <node name="Robotiq2FGripperRtuNode" pkg="robotiq_2f_gripper_control" type="Robotiq2FGripperRtuNode.py" args="/dev/ttyUSB0" output="screen"/>
   <node name="joy" pkg="joy" type="joy_node" output="screen"/>
-  <node name="image_publisher" pkg="image_publisher" type="image_publisher" args="$(find robot_control)/data/test.png" output="screen"/>
+  <node name="image_publisher" pkg="image_publisher" type="image_publisher" args="$(find e2e_handover)/data/test.png" output="screen"/>
 </launch>

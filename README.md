@@ -2,7 +2,7 @@
 ## Force Thresholding Baseline Approach
 Robot activates or releases the gripper when it detects a sufficient force in the z-axis.
 
-`roslaunch robot_control force_baseline.launch`
+`roslaunch e2e_handover force_baseline.launch`
 
 Optional:
 - `roslaunch ur5_moveit_config moveit_rviz.launch rviz_config:=$(rospack find ur5_moveit_config)/launch/moveit.rviz`
@@ -12,7 +12,7 @@ Data is stored in the `data` directory.
 
 Pressing 'r' begins or ends a recording session, identified by a timestamp. Images and a csv file for each session are stored in a folder. Pressing 'shift' toggles the gripper state manually.
 
-`roslaunch robot_control inference.launch`
+`roslaunch e2e_handover inference.launch`
 
 Optionally, record the raw ROS messages with `rosbag record rosout /camera/color/image_raw robotiq_ft_wrench Robotiq2FGripperRobotInput /Robotiq2FGripperRobotOutput`
 
@@ -23,11 +23,11 @@ As the docker container doesn't have CUDA support, this should be done outside t
 
 `pip install torch`
 
-`python3 src/robot_control/train.py --session 2021-12-01-15:30:36`
+`python3 src/e2e_handover/train.py --session 2021-12-01-15:30:36`
 
 ## Inference
 
-`roslaunch robot_control inference.launch`
+`roslaunch e2e_handover inference.launch`
 
 # Hardware Setup
 - UR5 Robot
@@ -66,7 +66,7 @@ Bring up communication with the robot:
 `roslaunch ur_robot_driver ur5_bringup.launch robot_ip:=10.0.0.2`
 
 Viewing the robot urdf:
-`roslaunch robot_control view_ur5_ft_grip_table.launch`
+`roslaunch e2e_handover view_ur5_ft_grip_table.launch`
 
 Gripper communication:
 `rosrun robotiq_2f_gripper_control Robotiq2FGripperRtuNode.py /dev/ttyUSB0`
@@ -80,17 +80,17 @@ or `roslaunch camera_driver realsense_driver.launch`
 
 Testing recorder:
 - Place an image in data/test.png
-- `roslaunch robot_control test_recording.launch`
+- `roslaunch e2e_handover test_recording.launch`
 
 Testing inference:
-- `roslaunch robot_control test_inference.launch`
+- `roslaunch e2e_handover test_inference.launch`
 
 Running in gazebo
-- `roslaunch ur_gazebo ur5_bringup.launch` / `roslaunch robot_control ur5_bringup_gazebo.launch`
+- `roslaunch ur_gazebo ur5_bringup.launch` / `roslaunch e2e_handover ur5_bringup_gazebo.launch`
 - `roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch sim:=true`
 
 Combine datasets:
-`python3 src/robot_control/prepare/data_prep.py --session 2021-12-17-tactile combine -l 2021-12-17-00:55:09 2021-12-17-01:01:44`
+`python3 src/e2e_handover/prepare/data_prep.py --session 2021-12-17-tactile combine -l 2021-12-17-00:55:09 2021-12-17-01:01:44`
 
 ## Pairing controller
 - For DualShock PS4 controller, press and hold both the Share and PS buttons.

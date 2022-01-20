@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(robot_control)
+project(e2e_handover)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -105,7 +105,7 @@ catkin_python_setup()
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES robot_control
+#  LIBRARIES e2e_handover
 #  CATKIN_DEPENDS moveit_core moveit_ros_interface moveit_ros_planning moveit_visual_tools
 #  DEPENDS system_lib
 )
@@ -123,7 +123,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/robot_control.cpp
+#   src/${PROJECT_NAME}/e2e_handover.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -207,7 +207,7 @@ install(DIRECTORY include/${PROJECT_NAME}/
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_robot_control.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_e2e_handover.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

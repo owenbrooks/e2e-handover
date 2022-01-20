@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-from robot_control.train.dataset import DeepHandoverDataset
+from e2e_handover.train.dataset import DeepHandoverDataset
 import torch
 import torch.nn as nn
-from robot_control.train.model import ResNet
+from e2e_handover.train.model import ResNet
 import torch.optim as optim
 import numpy as np
 from torch.utils.data import random_split 

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <node name="force_baseline" pkg="robot_control" type="force_baseline.py" output="screen"/>
+  <node name="force_baseline" pkg="e2e_handover" type="force_baseline.py" output="screen"/>
   <node name="rq_sensor" pkg="robotiq_ft_sensor" type="rq_sensor" output="screen">
     <param name="serial_id" value="ttyUSB1" />
   </node>

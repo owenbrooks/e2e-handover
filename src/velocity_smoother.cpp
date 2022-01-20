@@ -1,7 +1,7 @@
 // Adapted from https://github.com/yujinrobot/yujin_ocs/blob/devel/yocs_velocity_smoother/src/velocity_smoother_nodelet.cpp
 
 #include <ros/ros.h>
-#include <robot_control/velocity_smoother.hpp>
+#include <e2e_handover/velocity_smoother.hpp>
 
 #define PERIOD_RECORD_SIZE    5
 
