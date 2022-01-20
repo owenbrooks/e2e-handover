@@ -12,9 +12,9 @@ class TwistFilter:
     def __init__(self):
         rospy.init_node('twist_filter', anonymous=False)
 
-        rospy.Subscriber("/twist_cmd_raw", Twist, self.twist_callback)
+        rospy.Subscriber("/twist_filter/twist_cmd_raw", Twist, self.twist_callback)
         
-        self.twist_pub = rospy.Publisher("/twist_cmd_filtered", Twist, queue_size=10)
+        self.twist_pub = rospy.Publisher("/twist_filter/twist_cmd_filtered", Twist, queue_size=10)
         self.twist_msg = TwistStamped()
 
         self.tf_listener = tf.TransformListener()
