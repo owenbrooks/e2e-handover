@@ -10,7 +10,7 @@ from enum import Enum
 from robot_control.gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
 from cv_bridge import CvBridge, CvBridgeError
 from pynput import keyboard
-from robot_control.torch import model
+from robot_control.train import model
 import torch
 from robot_control.image_ops import prepare_image
 from robot_control.recorder import Recorder

@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import os
 import argparse
-from robot_control.torch import model
+from robot_control.train import model
 from robot_control.image_ops import prepare_image
 from robot_control.segmentation import Segmentor
 import torch

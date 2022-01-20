@@ -90,7 +90,7 @@ Running in gazebo
 - `roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch sim:=true`
 
 Combine datasets:
-`python3 src/robot_control/data_prep.py --session 2021-12-17-tactile combine -l 2021-12-17-00:55:09 2021-12-17-01:01:44`
+`python3 src/robot_control/prepare/data_prep.py --session 2021-12-17-tactile combine -l 2021-12-17-00:55:09 2021-12-17-01:01:44`
 
 ## Pairing controller
 - For DualShock PS4 controller, press and hold both the Share and PS buttons.

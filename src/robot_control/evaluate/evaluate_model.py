@@ -3,8 +3,8 @@ from datetime import datetime
 import json
 import numpy as np
 import os
-from robot_control.torch import model
-from robot_control.torch.dataset import DeepHandoverDataset
+from robot_control.train import model
+from robot_control.train.dataset import DeepHandoverDataset
 import torch
 from torch.utils.data import random_split 
 
