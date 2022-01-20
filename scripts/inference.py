@@ -64,7 +64,7 @@ class InferenceNode():
 
         self.force_sub = rospy.Subscriber('robotiq_ft_wrench', WrenchStamped, self.force_callback)
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
-        self.image_sub = rospy.Subscriber('/camera/color/image_raw', Image, self.image_callback)
+        self.image_sub = rospy.Subscriber('/camera1/color/image_raw', Image, self.image_callback)
         self.image_sub_2 = rospy.Subscriber('/camera2/color/image_raw', Image, self.image_callback_2)
         self.joy_sub = rospy.Subscriber('joy', Joy, self.joy_callback) # joystick control
         self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
@@ -72,8 +72,8 @@ class InferenceNode():
         if use_tactile:
             self.tactile_sub = rospy.Subscriber('/hub_0/sensor_0', SensorState, self.tactile_callback)
             self.tactile_sub_2 = rospy.Subscriber('/hub_0/sensor_1', SensorState, self.tactile_callback_2)
-            self.tactile_readings = [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
-            self.tactile_readings_2 = [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
+        self.tactile_readings = [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
+        self.tactile_readings_2 = [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
 
         self.cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images
 
@@ -83,6 +83,7 @@ class InferenceNode():
         self.obj_det_state = ObjDetection.GRIPPER_OFFLINE
         self.abs_z_force = 0.0
         self.toggle_key_pressed = False
+        self.img_2 = None
 
         self.is_inference_active = False
 
