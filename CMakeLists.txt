@@ -134,7 +134,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(velocity_smoother_node src/e2e_handover/velocity_smoother_node.cpp src/e2e_handover/velocity_smoother.cpp)
+add_executable(velocity_smoother src/e2e_handover/velocity_smoother_node.cpp src/e2e_handover/velocity_smoother.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -144,10 +144,10 @@ add_executable(velocity_smoother_node src/e2e_handover/velocity_smoother_node.cp
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(velocity_smoother_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(velocity_smoother ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(velocity_smoother_node
+target_link_libraries(velocity_smoother
   ${catkin_LIBRARIES}
 )
 
@@ -176,7 +176,7 @@ install(PROGRAMS
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
-install(TARGETS velocity_smoother_node
+install(TARGETS velocity_smoother
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
