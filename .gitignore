@@ -1,7 +1,5 @@
 *.pyc
 __pycache__
-data
-models
 wandb
 *.bag
 *.pkl
