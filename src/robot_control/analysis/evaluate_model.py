@@ -42,6 +42,8 @@ def main(session_id, model_name, test_fraction):
             model_open[i] = net(img, forces).cpu().data.numpy() > 0.5
             ground_truth_open[i] = ground_truth.cpu().data.numpy()
 
+            print(f"{i+1}/{test_length} complete")
+
     # Calculate statistics
     correct_count = np.count_nonzero(model_open == ground_truth_open)
     accuracy = correct_count / len(ground_truth_open)

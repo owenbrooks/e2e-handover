@@ -84,13 +84,9 @@ def segment(session_id: str):
 
     # Create a new folder to store the binary images with background subtracted
     orig_image_dir = os.path.join(data_dir, session_id, 'images',)
-    new_image_dir = os.path.join(data_dir, session_id + '_seg', 'images')
+    new_image_dir = os.path.join(data_dir, session_id, 'seg_images')
     if not os.path.exists(new_image_dir):
         os.makedirs(new_image_dir)
-
-    # Copy csv file with annotations to the new folder
-    csv_copy_path = os.path.join(data_dir, session_id + '_seg', session_id + '_seg.csv')
-    df.to_csv(csv_copy_path, sep=' ', index=False)
 
     segmentor = Segmentor()
 
@@ -103,8 +99,8 @@ def segment(session_id: str):
         new_image_path = os.path.join(new_image_dir, df.iloc[i]['image_id'])
 
         cv2.imwrite(new_image_path, new_image)
-        # cv2.imshow('mask', foreground_mask)
-        # cv2.waitKey(0)
+
+        print(f"{i+1}/{len(df)} completed.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
