@@ -1,7 +1,0 @@
-
-record_camera_2: True
-infer_camera_2: False
-record_tactile: True
-infer_tactile: False
-record_segmentation: False
-infer_segmentation: False

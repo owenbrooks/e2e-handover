@@ -1,27 +1,15 @@
 #!/usr/bin/env python
-import os
-import numpy as np
-from numpy.core.numeric import NaN
-import rospy
-from geometry_msgs.msg import WrenchStamped
-from sensor_msgs.msg import Joy, Image
-from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
-from enum import Enum
 from e2e_handover.gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
-from cv_bridge import CvBridge, CvBridgeError
-from pynput import keyboard
 from e2e_handover.train import model
+from enum import Enum
+from numpy.core.numeric import NaN
+import os
+from pynput import keyboard
+from sensor_msgs.msg import Joy
+from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
+import rospkg
+import rospy
 import torch
-from e2e_handover.image_ops import prepare_image
-from e2e_handover.recorder import Recorder
-
-use_tactile = True
-try:
-    from papillarray_ros_v2.msg import SensorState
-    from e2e_handover import tactile
-except ImportError:
-    use_tactile = False
-    print("Couldn't import papillarray")
 
 # Node to record data and perform inference given a trained model
 # Launch node, gripper opens
@@ -62,49 +50,26 @@ class InferenceNode():
     def __init__(self):
         rospy.init_node("inference")
 
-        self.force_sub = rospy.Subscriber('robotiq_ft_wrench', WrenchStamped, self.force_callback)
+        inference_params = rospy.get_param('~inference')
+
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
-        self.image_sub = rospy.Subscriber('/camera1/color/image_raw', Image, self.image_callback)
-        self.image_sub_2 = rospy.Subscriber('/camera2/color/image_raw', Image, self.image_callback_2)
         self.joy_sub = rospy.Subscriber('joy', Joy, self.joy_callback) # joystick control
         self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
 
-        if use_tactile:
-            self.tactile_sub = rospy.Subscriber('/hub_0/sensor_0', SensorState, self.tactile_callback)
-            self.tactile_sub_2 = rospy.Subscriber('/hub_0/sensor_1', SensorState, self.tactile_callback_2)
-        self.tactile_readings = [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
-        self.tactile_readings_2 = [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
-
-        self.cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images
-
-        self.recorder = Recorder(use_tactile)
-
         self.current_state = GripState.WAITING
         self.obj_det_state = ObjDetection.GRIPPER_OFFLINE
-        self.abs_z_force = 0.0
         self.toggle_key_pressed = False
-        self.img_2 = None
 
         self.is_inference_active = False
 
-        self.raw_wrench_reading = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # [fx, fy, fz, mx, my, mz]
-        self.calib_wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # [fx, fy, fz, mx, my, mz]
-        self.base_wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # used to "calibrate" the force sensor since it gives different readings at different times
-
-        # Create folder for storing recorded images and the csv with numerical/annotation data
-        current_dirname = os.path.dirname(__file__)
-        data_dir = os.path.join(current_dirname, '../data')
-        data_dir_exists = os.path.exists(data_dir)
-        if not data_dir_exists:
-            os.makedirs(data_dir)
-
         # Create network and load weights
-        # model_name = rospy.get_param("model_name", default='2021-12-09-04:56:05.pt')
-        model_name = rospy.get_param("model_name", default='2021-12-14-23_calib_best.pt')
-        rospy.loginfo(f"Using model: {model_name}")
-        self.net = model.ResNet()
-        model_path = os.path.join(current_dirname, '../models', model_name)
+        model_file = inference_params['model_file']
+        rospack = rospkg.RosPack()
+        package_dir = rospack.get_path('e2e_handover')
+        model_path = os.path.join(package_dir, model_file)
+        rospy.loginfo(f"Using model: {model_path}")
         if os.path.isfile(model_path):
+            self.net = model.ResNet()
             self.net.load_state_dict(torch.load(model_path))
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             rospy.loginfo("Using device: " + str(self.device))
@@ -116,27 +81,17 @@ class InferenceNode():
 
         self.model_output = NaN
 
-    def tactile_callback(self, sensor_msg):
-        value_list = tactile.sensor_state_to_list(sensor_msg)
-        self.tactile_readings = value_list
+    def perform_inference(self):
+        if self.is_inference_active and self.net is not None:
+            img = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
+            img = img[:, :, ::-1]
+            img_t = prepare_image(img).unsqueeze_(0).to(self.device)
+            forces_t = torch.autograd.Variable(torch.FloatTensor(self.calib_wrench_array)).unsqueeze_(0).to(self.device)
 
-    def tactile_callback_2(self, sensor_msg):
-        value_list = tactile.sensor_state_to_list(sensor_msg)
-        self.tactile_readings_2 = value_list
+            # forward + backward + optimize
+            output_t = self.net(img_t, forces_t)
+            self.model_output = output_t.cpu().detach().numpy()[0][0]
 
-    def force_callback(self, wrench_msg):
-        self.abs_z_force = abs(self.base_wrench_array[2] - wrench_msg.wrench.force.z)
-
-        self.raw_wrench_reading = np.array([wrench_msg.wrench.force.x, wrench_msg.wrench.force.y, wrench_msg.wrench.force.z, 
-            wrench_msg.wrench.torque.x, wrench_msg.wrench.torque.y, wrench_msg.wrench.torque.z])
-
-        # Subtracts a previous wrench reading to act as a kind of calibration
-        self.calib_wrench_array = self.raw_wrench_reading - self.base_wrench_array
-
-        # Continuously calibrates the force sensor unless inference or recording is activated
-        if not self.is_inference_active and not self.recorder.is_recording:
-            self.base_wrench_array = self.raw_wrench_reading
-    
     def gripper_state_callback(self, gripper_input_msg):
         self.obj_det_state = obj_msg_to_enum[gripper_input_msg.gOBJ]
 
@@ -164,34 +119,6 @@ class InferenceNode():
         except AttributeError: # special keys (ctrl, alt, etc.) will cause this exception
             if key == keyboard.Key.shift or key == keyboard.Key.shift_r:
                 self.toggle_gripper()
-
-    def image_callback_2(self, image_msg):
-        try:
-            self.img_2 = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
-        except CvBridgeError as e:
-            rospy.logerr(e)
-
-    def image_callback(self, image_msg):
-        try:
-            img = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
-        except CvBridgeError as e:
-            rospy.logerr(e)
-
-        if self.recorder.is_recording and self.img_2 is not None:
-            gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
-            self.recorder.record_row(img, self.img_2, self.raw_wrench_reading, 
-                gripper_is_open, self.tactile_readings, self.tactile_readings_2
-            )
-
-        if self.is_inference_active and self.net is not None:
-            img = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
-            img = img[:, :, ::-1]
-            img_t = prepare_image(img).unsqueeze_(0).to(self.device)
-            forces_t = torch.autograd.Variable(torch.FloatTensor(self.calib_wrench_array)).unsqueeze_(0).to(self.device)
-
-            # forward + backward + optimize
-            output_t = self.net(img_t, forces_t)
-            self.model_output = output_t.cpu().detach().numpy()[0][0]
 
     def compute_next_state(self, force, toggle_key_pressed):
         next_state = self.current_state
@@ -244,6 +171,7 @@ class InferenceNode():
         
         while not rospy.is_shutdown():
             next_state = self.compute_next_state(self.abs_z_force, self.toggle_key_pressed)
+            # TODO: run inference here
             self.toggle_key_pressed = False
             if next_state != self.current_state:
                 print("" + str(self.current_state) + " -> " + str(next_state))

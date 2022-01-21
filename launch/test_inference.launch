@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <node name="inference" pkg="e2e_handover" type="inference.py" output="screen">
+  <node name="inference" pkg="e2e_handover" type="handover.py" output="screen">
     <remap from="/camera/color/image_raw" to="/image_publisher/image_raw" />
   </node>
   <node name="rq_sensor" pkg="robotiq_ft_sensor" type="rq_sensor" output="screen">

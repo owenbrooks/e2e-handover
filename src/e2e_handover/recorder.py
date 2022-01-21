@@ -14,7 +14,7 @@ import rospy
 # Each session folder has a csv with numerical data and gripper state associated with image name
 
 class Recorder():
-    def __init__(self, record_tactile):
+    def __init__(self):
         self.twist_sub = rospy.Subscriber('/twist_cmd_raw', Twist, self.twist_callback)
         self.filtered_twist_sub = rospy.Subscriber('/twist_cmd_filtered', Twist, self.filtered_twist_callback)
 
@@ -25,7 +25,7 @@ class Recorder():
         self.twist_array = 6*[0.0]
         self.filtered_twist_array = 6*[0.0]
 
-        self.record_tactile = record_tactile
+        self.recording_params = rospy.get_param('~recording')
 
         # Create folder for storing recorded images and the csv with numerical/annotation data
         current_dirname = os.path.dirname(__file__)
@@ -41,6 +41,12 @@ class Recorder():
         self.filtered_twist_array = [twist_msg.linear.x, twist_msg.linear.y, twist_msg.linear.z, twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z]
 
     def record_row(self, image, image_2, wrench, gripper_is_open, tactile_readings=[], tactile_readings_2=[]):
+        if self.recorder.is_recording and self.img_2 is not None:
+            gripper_is_open = self.current_state == GripState.RELEASING or self.current_state == GripState.WAITING
+            self.recorder.record_row(img_rgb, self.img_2, self.raw_wrench_reading, 
+                gripper_is_open, self.tactile_readings, self.tactile_readings_2
+            )
+        
         if self.is_recording:
             # Save image as png
             current_dirname = os.path.dirname(__file__)
@@ -59,7 +65,7 @@ class Recorder():
                 datawriter = csv.writer(csvfile, delimiter=' ')
                 row = [image_name, second_image_name, gripper_is_open] + wrench.tolist() + self.twist_array + self.filtered_twist_array
 
-                if self.record_tactile:
+                if self.recording_params['use_tactile']:
                     row += tactile_readings
                     row += tactile_readings_2
 
@@ -87,7 +93,7 @@ class Recorder():
                 twist_header = ['vx', 'vy', 'vz', 'wx', 'wy', 'wz']
                 filtered_twist_header = ['vx_filt', 'vy_filt', 'vz_filt', 'wx_filt', 'wy_filt', 'wz_filt']
                 header = ['image_id', 'second_image_id', 'gripper_is_open'] + wrench_header + twist_header + filtered_twist_header
-                if self.record_tactile:
+                if self.recording_params['use_tactile']:
                     header += tactile.papillarray_keys
             
                 datawriter.writerow(header)
