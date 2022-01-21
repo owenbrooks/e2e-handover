@@ -8,15 +8,15 @@ import numpy as np
 import os
 
 class DeepHandoverDataset(Dataset):
-    def __init__(self, session_id, transform=None, target_transform=None):
-        current_dirname = os.path.dirname(__file__)
-        data_dir = os.path.join(current_dirname, '../../../data')
-        annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
+    def __init__(self, params, transform=None, target_transform=None):
+        annotations_file = os.path.join(params.data_file) # path to csv file
+        data_dir = os.path.dirname(annotations_file)
+
         self.img_labels = pd.read_csv(annotations_file, sep=' ')
-        self.session_id = session_id
+        self.data_dir = data_dir
         self.transform = transform
         self.target_transform = target_transform
-        self.use_segmentation = os.environ.get('use_segmentation')
+        self.use_segmentation = params.use_segmentation
 
         if self.transform == None:
             # first three values are standard for ResNet
@@ -34,14 +34,14 @@ class DeepHandoverDataset(Dataset):
 
     def __getitem__(self, idx):
         current_dirname = os.path.dirname(__file__)
-        data_dir = os.path.join(current_dirname, '../../../data')
-        image_name = self.img_labels.iloc[idx, 0]
-        img_path = os.path.join(data_dir, self.session_id, 'images', image_name)
+        image_rel_path = self.img_labels.iloc[idx, 0]
+        img_path = os.path.join(self.data_dir, image_rel_path)
         image = Image.open(img_path).convert('RGB') # this RGB conversion means it works on the binary segmented images too
 
         if self.use_segmentation:
             # stack segmented image to create a 4D image
-            segmented_image_path = os.path.join(data_dir, self.session_id, 'seg_images', image_name)
+            seg_image_rel_path = self.img_labels['image_seg_1'].iloc[idx]
+            seg_image_path = os.path.join(data_dir, seg_image_rel_path)
             segmented_image = Image.open(segmented_image_path).convert()
             rgb_np = np.asarray(image)
             seg_np = np.asarray(segmented_image)
@@ -71,6 +71,3 @@ class DeepHandoverDataset(Dataset):
         sample['gripper_is_open'] = gripper_state_tensor
 
         return image_tensor, force_tensor, gripper_state_tensor
-
-if __name__ == "__main__":
-    data = DeepHandoverDataset("2021-12-01-15:30:36")

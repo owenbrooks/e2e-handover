@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
+import argparse
+from collections import namedtuple
 from e2e_handover.train.dataset import DeepHandoverDataset
+from e2e_handover.train.model import ResNet
+import numpy as np
+import os
+import sys
 import torch
 import torch.nn as nn
-from e2e_handover.train.model import ResNet
 import torch.optim as optim
-import numpy as np
 from torch.utils.data import random_split 
-import os
-import argparse
 import wandb
+import yaml
 
-def main(args):
-    session_id = args.session
-    print("Beginning training. Session id: " + session_id)
-    dataset = DeepHandoverDataset(session_id)
+def main(params):
+    print("Beginning training. Data: " + params.data_file)
+    dataset = DeepHandoverDataset(params)
     # random.shuffle(dataset.img_annotation_path_pairs)
 
     # Split between test and train
@@ -22,8 +24,8 @@ def main(args):
     test_length = len(dataset) - train_length
     train_data, test_data = random_split(dataset, [train_length, test_length], generator=torch.Generator().manual_seed(42))
 
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, num_workers=args.num_workers, pin_memory=True)
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=params.batch_size, shuffle=True, num_workers=params.num_workers, pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, num_workers=params.num_workers, pin_memory=True)
 
     # Load pre-trained resnet18 model weights
     model = ResNet()
@@ -36,23 +38,23 @@ def main(args):
     print("Using device: " + str(device))
     model.to(device)
 
-    train(model, train_loader, test_loader, device, args)
+    train(model, train_loader, test_loader, device, params)
 
-def train(model, train_loader, test_loader, device, args):
+def train(model, train_loader, test_loader, device, params):
     model.train()
 
     # Create directory and path for saving model
-    current_dirname = os.path.dirname(__file__)
+    data_dir = os.path.dirname(params.data_file)
     model_dir = os.path.join(current_dirname, '../../../models')
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
-    model_path = os.path.join(model_dir, args.session + '.pt')
+    model_path = os.path.join(model_dir, 'model.pt')
 
     criterion = nn.BCELoss()
 
     # Training loop
-    optimizer = optim.SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
-    for epoch in range(args.num_epochs):
+    optimizer = optim.SGD(model.parameters(), lr=params.learning_rate, momentum=0.9)
+    for epoch in range(params.num_epochs):
         running_loss = 0.0
         model.train()
         for i, data in enumerate(train_loader):
@@ -74,7 +76,7 @@ def train(model, train_loader, test_loader, device, args):
             # print statistics
             running_loss += float(loss.data)
 
-            if i % args.log_step == args.log_step-1:    # print every few mini-batches
+            if i % params.log_step == params.log_step-1:    # print every few mini-batches
                 print('Epoch %d. batch loss: %0.5f' %(epoch + 1, loss.data))
 
         train_loss = running_loss / len(train_loader)
@@ -152,18 +154,21 @@ def test(model, test_loader, criterion, device):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--session', type=str, default="2021-12-09-04:56:05", help='session id of data to train on')
+    parser.add_argument('--data', type=str, help='path of csv file to train on e.g. data/2021-12-09-04:56:05/raw.csv')
 
-    parser.add_argument('--log_step', type=int , default=10, help='step size for prining log info')
-    parser.add_argument('--save_step', type=int , default=1000, help='step size for saving trained models')
-    
-    parser.add_argument('--num_epochs', type=int, default=100)
-    parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--num_workers', type=int, default=4)
-    parser.add_argument('--learning_rate', type=float, default=0.001)
+    current_dirname = os.path.dirname(__file__)
+    params_path = os.path.join(current_dirname, 'params.yaml')
+    with open(params_path, 'r') as stream:
+        try:
+            params = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+            sys.exit(1)
 
-    args = parser.parse_args()
-    print(args)
-    wandb.init(project="e2e-handover", entity="owenbrooks")
-    wandb.config.update(args)
-    main(args)
+        args = parser.parse_args()
+        params['data_file'] = args.data
+        wandb.init(project="e2e-handover", entity="owenbrooks")
+        wandb.config.update(params)
+
+        params = namedtuple("Params", params.keys())(*params.values())
+        main(params)
