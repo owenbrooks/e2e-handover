@@ -30,6 +30,8 @@ class Recorder():
         self.twist_array = 6*[0.0]
         self.filtered_twist_array = 6*[0.0]
 
+        self.gripper_is_open = False
+
         self.recording_params = rospy.get_param('~recording')
         self.sensor_manager = SensorManager(self.recording_params)
 
@@ -63,23 +65,24 @@ class Recorder():
 
         return rel_path
 
-    def record_row(self):       
-        rel_path_rgb_1 = self.save_image(self.sensor_manager.img_rgb_1, self.session_image_count, 'image_rgb_1')
-        rel_path_rgb_2 = self.save_image(self.sensor_manager.img_rgb_2, self.session_image_count, 'image_rgb_2')
+    def record_row(self):
+        if self.recording_params['use_rgb_1']:       
+            rel_path_rgb_1 = self.save_image(self.sensor_manager.img_rgb_1, self.session_image_count, 'image_rgb_1')
+        if self.recording_params['use_rgb_2']:
+            rel_path_rgb_2 = self.save_image(self.sensor_manager.img_rgb_2, self.session_image_count, 'image_rgb_2')
         
         # Append numerical data and annotation to the session csv
         csv_path = os.path.join(self.data_dir, self.session_id, self.session_id + '.csv')
         with open(csv_path, 'a+') as csvfile:
             datawriter = csv.writer(csvfile, delimiter=' ')
-            row = []
+            row = [self.gripper_is_open] + self.twist_array + self.filtered_twist_array
+
             if self.recording_params['use_rgb_1']:
                 row.append(rel_path_rgb_1)
             if self.recording_params['use_rgb_2']:
                 row.append(rel_path_rgb_2)
             if self.recording_params['use_force']:
-                row.append(self.base_wrench_array.tolist())
-
-            row = [self.gripper_is_open] + self.twist_array + self.filtered_twist_array
+                row += self.sensor_manager.raw_wrench_reading.tolist()
 
             if self.recording_params['use_tactile']:
                 row += self.sensor_manager.tactile_1_readings
@@ -97,8 +100,14 @@ class Recorder():
             # Create folder for storing recorded images and the session csv
             self.session_id = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
             session_dir = os.path.join(self.data_dir, self.session_id)
-            image_dir = os.path.join(session_dir, 'images')
-            os.makedirs(image_dir)
+
+            if self.recording_params['use_rgb_1']:
+                image_rgb_1_dir = os.path.join(session_dir, 'image_rgb_1')
+                os.makedirs(image_rgb_1_dir)
+            if self.recording_params['use_rgb_2']:
+                image_rgb_2_dir = os.path.join(session_dir, 'image_rgb_2')
+                os.makedirs(image_rgb_2_dir)
+
             # Create csv file for recording numerical data and annotation in the current session
             fname = os.path.join(session_dir, self.session_id + '.csv')
             with open(fname, 'w+') as csvfile:
@@ -116,7 +125,7 @@ class Recorder():
                 if self.recording_params['use_rgb_2']:
                     header.append('image_rgb_2')
                 if self.recording_params['use_force']:
-                    header.append(wrench_header)
+                    header += wrench_header
 
                 if self.recording_params['use_tactile']:
                     header += tactile.papillarray_keys
@@ -133,7 +142,7 @@ class Recorder():
             self.is_recording = False
             self.sensor_manager.deactivate()
             rospy.loginfo("Finished recording. Session: " + self.session_id)
-            rospy.loginfo("Recorded " + str(self.session_image_count) + " images")
+            rospy.loginfo("Recorded " + str(self.session_image_count) + " frames")
 
     def toggle_recording(self):
         if self.is_recording:
@@ -142,10 +151,8 @@ class Recorder():
             self.start_recording()
 
     def on_key_press(self, key):
-        rospy.loginfo('testing')
         try:
             char = key.char
-            rospy.loginfo('test')
             if char == 'r': # r key to start/stop recording
                 self.toggle_recording()
         except AttributeError: # special keys (ctrl, alt, etc.) will cause this exception

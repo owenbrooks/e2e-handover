@@ -1,11 +1,12 @@
 <?xml version="1.0"?>
 <launch>
   <node name="handover" pkg="e2e_handover" type="handover.py" output="screen">
-    <remap from="/camera/color/image_raw" to="/image_publisher/image_raw" />
+    <remap from="/camera1/color/image_raw" to="/image_publisher/image_raw" />
     <rosparam command="load" file="$(find e2e_handover)/param/handover_params.yaml" />
   </node>
   <node name="recorder" pkg="e2e_handover" type="recorder.py" output="screen">
-    <remap from="/camera/color/image_raw" to="/image_publisher/image_raw" />
+    <remap from="/camera1/color/image_raw" to="/image_publisher/image_raw" />
+    <remap from="/camera2/color/image_raw" to="/image_publisher/image_raw" />
     <rosparam command="load" file="$(find e2e_handover)/param/handover_params.yaml" />
   </node>
   <!-- <node name="joy" pkg="joy" type="joy_node" output="screen"/> -->

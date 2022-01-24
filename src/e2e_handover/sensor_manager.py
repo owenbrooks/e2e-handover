@@ -19,7 +19,6 @@ class SensorManager():
             sensor_params['use_rgb_2'], sensor_params['use_force'], 
             sensor_params['use_tactile'], sensor_params['use_segmentation'])
 
-
         self.img_rgb_1 = None
         self.img_rgb_2 = None
         if self.use_rgb_1:
@@ -57,16 +56,16 @@ class SensorManager():
             self.use_tactile and (self.tactile_1_readings is None or self.tactile_2_readings is None),
         ]
 
-        return any(remaining_sensors)
+        return not any(remaining_sensors)
 
     def deactivate(self):
         self.is_active = False
 
-        self.img_rgb_1 = None
-        self.img_rgb_2 = None
-        self.raw_wrench_reading = None
-        self.tactile_1_readings = None
-        self.tactile_2_readings = None
+        # self.img_rgb_1 = None
+        # self.img_rgb_2 = None
+        # self.raw_wrench_reading = None
+        # self.tactile_1_readings = None
+        # self.tactile_2_readings = None
 
     def tactile_1_callback(self, sensor_msg):
         if self.is_active:
