@@ -11,6 +11,7 @@ from sensor_msgs.msg import Joy
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 import rospkg
 import rospy
+from std_msgs.msg import Bool
 import torch
 
 # Node to record data and perform inference given a trained model
@@ -40,6 +41,7 @@ class HandoverNode():
 
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
         self.joy_sub = rospy.Subscriber('joy', Joy, self.joy_callback) # joystick control
+        self.recording_state_sub = rospy.Subscriber('/recorder/is_recording', Bool, self.recording_state_callback)
         self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
 
         self.current_state = GripState.WAITING
@@ -47,6 +49,7 @@ class HandoverNode():
         self.toggle_key_pressed = False
 
         self.is_inference_active = False
+        self.is_recording = False
 
         # Create network and load weights
         model_file = inference_params['model_file']
@@ -66,6 +69,9 @@ class HandoverNode():
             rospy.logwarn(f"Unable to load model at {model_path}")
 
         self.model_output = NaN
+
+    def recording_state_callback(self, msg):
+        self.is_recording = msg.data
 
     def spin_inference(self):
         if self.is_inference_active and self.sensor_manager.sensors_ready() and self.net is not None:
@@ -162,7 +168,7 @@ class HandoverNode():
                 print("" + str(self.current_state) + " -> " + str(next_state))
                 self.current_state = next_state
 
-            rospy.loginfo("Rec: %s, infer: %s, out: %.4f, %s, %s", "TODO: fix", self.is_inference_active, self.model_output, self.obj_det_state, self.current_state)
+            rospy.loginfo(f"Rec: {self.is_recording}, infer: {self.is_inference_active}, out: %.4f, {self.obj_det_state}, {self.current_state}", self.model_output)
 
             rate.sleep()
 

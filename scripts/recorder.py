@@ -5,11 +5,12 @@ from datetime import datetime
 from e2e_handover.sensor_manager import SensorManager
 from e2e_handover import tactile
 from geometry_msgs.msg import Twist
-from pynput import keyboard
 import os
+from pynput import keyboard
 from robotiq_2f_gripper_control.msg import  _Robotiq2FGripper_robot_input as inputMsg
 import rospkg
 import rospy
+from std_msgs.msg import Bool
 
 # Class to record data 
 # Data is stored in 'data/${SESSION_ID}' folder, where SESSION_ID is unique timestamp
@@ -22,6 +23,8 @@ class Recorder():
         self.twist_sub = rospy.Subscriber('/twist_cmd_raw', Twist, self.twist_callback)
         self.filtered_twist_sub = rospy.Subscriber('/twist_cmd_filtered', Twist, self.filtered_twist_callback)
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
+
+        self.recording_pub = rospy.Publisher('~is_recording', Bool, queue_size=10)
 
         self.is_recording = False
         self.session_id = ""
@@ -168,6 +171,11 @@ class Recorder():
         while not rospy.is_shutdown():
             if self.is_recording and self.sensor_manager.sensors_ready():
                 self.record_row()
+
+            state_msg = Bool()
+            state_msg.data = self.is_recording
+            self.recording_pub.publish(state_msg)
+
             rate.sleep()
 
     
