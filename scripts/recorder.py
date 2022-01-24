@@ -25,7 +25,7 @@ class Recorder():
 
         self.is_recording = False
         self.session_id = ""
-        self.session_image_count = 0
+        self.row_count = 0
 
         self.twist_array = 6*[0.0]
         self.filtered_twist_array = 6*[0.0]
@@ -58,7 +58,6 @@ class Recorder():
     def save_image(self, image, count, identifier):
         # Save image as png
         image_name = f"{count}_{self.session_id}.png"
-        self.session_image_count += 1
         rel_path = os.path.join(identifier, image_name)
         image_path = os.path.join(self.data_dir, self.session_id, rel_path)
         cv2.imwrite(image_path, image)
@@ -67,9 +66,9 @@ class Recorder():
 
     def record_row(self):
         if self.recording_params['use_rgb_1']:       
-            rel_path_rgb_1 = self.save_image(self.sensor_manager.img_rgb_1, self.session_image_count, 'image_rgb_1')
+            rel_path_rgb_1 = self.save_image(self.sensor_manager.img_rgb_1, self.row_count, 'image_rgb_1')
         if self.recording_params['use_rgb_2']:
-            rel_path_rgb_2 = self.save_image(self.sensor_manager.img_rgb_2, self.session_image_count, 'image_rgb_2')
+            rel_path_rgb_2 = self.save_image(self.sensor_manager.img_rgb_2, self.row_count, 'image_rgb_2')
         
         # Append numerical data and annotation to the session csv
         csv_path = os.path.join(self.data_dir, self.session_id, self.session_id + '.csv')
@@ -89,6 +88,7 @@ class Recorder():
                 row += self.sensor_manager.tactile_2_readings
 
             datawriter.writerow(row)
+            self.row_count += 1
 
     def start_recording(self):
         if self.is_recording:
@@ -96,7 +96,7 @@ class Recorder():
         else:
             self.sensor_manager.activate()
             self.is_recording = True
-            self.session_image_count = 0
+            self.row_count = 0
             # Create folder for storing recorded images and the session csv
             self.session_id = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
             session_dir = os.path.join(self.data_dir, self.session_id)
@@ -141,8 +141,8 @@ class Recorder():
         else:
             self.is_recording = False
             self.sensor_manager.deactivate()
-            rospy.loginfo("Finished recording. Session: " + self.session_id)
-            rospy.loginfo("Recorded " + str(self.session_image_count) + " frames")
+            rospy.loginfo(f"Finished recording. Session: {self.session_id}")
+            rospy.loginfo(f"Recorded {self.row_count + 1} frames")
 
     def toggle_recording(self):
         if self.is_recording:
