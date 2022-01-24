@@ -14,10 +14,12 @@ except ImportError:
 
 class SensorManager():
     def __init__(self, sensor_params):
-        (self.use_rgb_1, self.use_rgb_2, self.use_force, 
-            self.use_tactile, self.use_segmentation) = (sensor_params['use_rgb_1'], 
-            sensor_params['use_rgb_2'], sensor_params['use_force'], 
-            sensor_params['use_tactile'], sensor_params['use_segmentation'])
+        (self.use_rgb_1, self.use_rgb_2, self.use_depth_1, self.use_depth_2, 
+            self.use_force, self.use_tactile, self.use_segmentation) = (
+                sensor_params['use_rgb_1'], sensor_params['use_rgb_2'], 
+                sensor_params['use_depth_1'], sensor_params['use_depth_2'],
+                sensor_params['use_force'], sensor_params['use_tactile'], sensor_params['use_segmentation']
+            )
 
         self.img_rgb_1 = None
         self.img_rgb_2 = None
@@ -25,6 +27,13 @@ class SensorManager():
             self.image_rgb_1_sub = rospy.Subscriber('/camera1/color/image_raw', Image, self.image_rgb_1_callback)
         if self.use_rgb_2:
             self.image_rgb_2_sub = rospy.Subscriber('/camera2/color/image_raw', Image, self.image_rgb_2_callback)
+        
+        self.depth_1 = None
+        self.depth_2 = None
+        if self.use_depth_1:
+            self.image_depth_1_sub = rospy.Subscriber('/camera1/depth/image_raw', Image, self.image_depth_1_callback)
+        if self.use_depth_2:
+            self.image_depth_2_sub = rospy.Subscriber('/camera2/depth/image_raw', Image, self.image_depth_2_callback)
         
         if self.use_force:
             self.force_sub = rospy.Subscriber('robotiq_ft_wrench', WrenchStamped, self.force_callback)
@@ -101,5 +110,19 @@ class SensorManager():
         if self.is_active:
             try:
                 self.img_rgb_2 = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
+            except CvBridgeError as e:
+                rospy.logerr(e)
+
+    def image_depth_1_callback(self, image_msg):
+        if self.is_active:
+            try:
+                self.img_depth_1 = self.cv_bridge.imgmsg_to_cv2(image_msg)
+            except CvBridgeError as e:
+                rospy.logerr(e)
+
+    def image_depth_2_callback(self, image_msg):
+        if self.is_active:
+            try:
+                self.img_depth_2 = self.cv_bridge.imgmsg_to_cv2(image_msg)
             except CvBridgeError as e:
                 rospy.logerr(e)
