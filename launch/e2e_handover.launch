@@ -2,6 +2,7 @@
 <launch>
   <rosparam command="load" file="$(find e2e_handover)/param/handover_params.yaml" />
   <node name="inference" pkg="e2e_handover" type="handover.py" output="screen"/>
+  <node name="recorder" pkg="e2e_handover" type="recorder.py" output="screen"/>
   <node name="rq_sensor" pkg="robotiq_ft_sensor" type="rq_sensor" output="screen">
     <param name="serial_id" value="ttyUSB1" />
   </node>
@@ -10,7 +11,6 @@
     <arg name="serial_no_camera1" value="815412070589"/>
     <arg name="serial_no_camera2" value="141722072409"/>
   </include>
-
   <!-- <include if=""file="$(find e2e_handover)/launch/papillarray.launch" /> -->
   <include file="$(find e2e_handover)/launch/joystick.launch"/>
 </launch>
