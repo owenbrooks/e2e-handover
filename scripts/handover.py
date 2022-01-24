@@ -1,10 +1,12 @@
 #!/usr/bin/env python
-from e2e_handover.gripper import open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
+from e2e_handover.gripper import ObjDetection, obj_msg_to_enum, open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
+from e2e_handover.image_ops import prepare_image
 from e2e_handover.train import model
 from enum import Enum
 from numpy.core.numeric import NaN
 import os
 from pynput import keyboard
+from e2e_handover.sensor_manager import SensorManager
 from sensor_msgs.msg import Joy
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 import rospkg
@@ -27,30 +29,14 @@ class GripState(Enum):
     HOLDING=3
     RELEASING=4
 
-class ObjDetection(Enum):
-    IN_MOTION=0
-    OPENING_STOPPED=1
-    CLOSING_STOPPED=2
-    FINISHED_MOTION=3
-    GRIPPER_OFFLINE=4
-
-# Used to map gripper state integer to our enum values
-obj_msg_to_enum = {
-    0: ObjDetection.IN_MOTION, 
-    1: ObjDetection.OPENING_STOPPED, 
-    2: ObjDetection.CLOSING_STOPPED, 
-    3: ObjDetection.FINISHED_MOTION
-}
-
-GRAB_THRESHOLD_FORCE = 50 # Newtons
-RELEASE_THRESHOLD_FORCE = 50 # Newtons
 MODEL_THRESHOLD = 0.5
 
-class InferenceNode():
+class HandoverNode():
     def __init__(self):
         rospy.init_node("inference")
 
         inference_params = rospy.get_param('~inference')
+        self.sensor_manager = SensorManager(inference_params)
 
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
         self.joy_sub = rospy.Subscriber('joy', Joy, self.joy_callback) # joystick control
@@ -81,15 +67,13 @@ class InferenceNode():
 
         self.model_output = NaN
 
-    def perform_inference(self):
-        if self.is_inference_active and self.net is not None:
-            img = self.cv_bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
-            img = img[:, :, ::-1]
-            img_t = prepare_image(img).unsqueeze_(0).to(self.device)
+    def spin_inference(self):
+        if self.is_inference_active and self.sensor_manager.sensors_ready() and self.net is not None:
+            img_rgb_1 = self.sensor_manager.img_rgb_1[:, :, ::-1]
+            img_rgb_1_t = prepare_image(img_rgb_1).unsqueeze_(0).to(self.device)
             forces_t = torch.autograd.Variable(torch.FloatTensor(self.calib_wrench_array)).unsqueeze_(0).to(self.device)
 
-            # forward + backward + optimize
-            output_t = self.net(img_t, forces_t)
+            output_t = self.net(img_rgb_1_t, forces_t)
             self.model_output = output_t.cpu().detach().numpy()[0][0]
 
     def gripper_state_callback(self, gripper_input_msg):
@@ -99,38 +83,40 @@ class InferenceNode():
         self.toggle_key_pressed = True
 
     def joy_callback(self, joy_msg):
-        share_pressed = joy_msg.buttons[8]
         down_pressed = joy_msg.axes[7] == -1
         x_pressed = joy_msg.buttons[0] == 1
-
-        if share_pressed:
-            self.recorder.toggle_recording()
 
         if down_pressed or x_pressed:
             self.toggle_gripper()
 
+    def toggle_inference(self):
+        self.is_inference_active = not self.is_inference_active
+
+        if self.is_inference_active:
+            self.sensor_manager.activate()
+        else:
+            self.sensor_manager.deactivate()
+
     def on_key_press(self, key):
         try:
             char = key.char
-            if char == 'r': # r key to start/stop recording
-                self.recorder.toggle_recording()
             if char == 'i': # i key to start/stop inference controlling the gripper
-                self.is_inference_active = not self.is_inference_active
+                self.toggle_inference()
         except AttributeError: # special keys (ctrl, alt, etc.) will cause this exception
             if key == keyboard.Key.shift or key == keyboard.Key.shift_r:
                 self.toggle_gripper()
 
-    def compute_next_state(self, force, toggle_key_pressed):
+    def compute_next_state(self, toggle_key_pressed):
         next_state = self.current_state
 
         if self.current_state == GripState.HOLDING:
-            if force > RELEASE_THRESHOLD_FORCE or toggle_key_pressed or self.model_output > MODEL_THRESHOLD:
+            if toggle_key_pressed or self.model_output > MODEL_THRESHOLD:
                 next_state = GripState.RELEASING
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
         elif self.current_state == GripState.WAITING:
-            if force > GRAB_THRESHOLD_FORCE or toggle_key_pressed or self.model_output < MODEL_THRESHOLD:
+            if toggle_key_pressed or self.model_output < MODEL_THRESHOLD:
                 next_state = GripState.GRABBING
                 # close gripper
                 grip_cmd = close_gripper_msg()
@@ -153,9 +139,9 @@ class InferenceNode():
         rospy.loginfo("Running inference node")
         rate = rospy.Rate(10)
 
-        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-            rospy.loginfo("Waiting for gripper to connect")
-            rate.sleep()
+        # while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+        #     rospy.loginfo("Waiting for gripper to connect")
+        #     rate.sleep()
 
         # initialise the gripper via reset and activate messages
         grip_cmd = reset_gripper_msg()
@@ -165,25 +151,24 @@ class InferenceNode():
         self.gripper_pub.publish(grip_cmd)
 
         # keyboard input
-        key_listener = keyboard.Listener(
-            on_press=self.on_key_press)
+        key_listener = keyboard.Listener(on_press=self.on_key_press)
         key_listener.start()
         
         while not rospy.is_shutdown():
-            next_state = self.compute_next_state(self.abs_z_force, self.toggle_key_pressed)
-            # TODO: run inference here
+            self.spin_inference()
+            next_state = self.compute_next_state(self.toggle_key_pressed)
             self.toggle_key_pressed = False
             if next_state != self.current_state:
                 print("" + str(self.current_state) + " -> " + str(next_state))
                 self.current_state = next_state
 
-            rospy.loginfo("Rec: %s, infer: %s, out: %.4f, f_z: %.2f, %s, %s, tactile: %s", self.recorder.is_recording, self.is_inference_active, self.model_output, self.abs_z_force, self.obj_det_state, self.current_state, use_tactile)
+            rospy.loginfo("Rec: %s, infer: %s, out: %.4f, %s, %s", "TODO: fix", self.is_inference_active, self.model_output, self.obj_det_state, self.current_state)
 
             rate.sleep()
 
 if __name__ == "__main__":
     try: 
-        inference = InferenceNode()
-        inference.run()
+        handover = HandoverNode()
+        handover.run()
     except KeyboardInterrupt:
         pass

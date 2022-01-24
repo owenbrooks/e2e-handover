@@ -2,16 +2,18 @@
 
 recording:
   data_dir: 'data' # relative to package.xml
-  use_camera_1: False
-  use_camera_2: False
+  use_rgb_1: False
+  use_rgb_2: False
+  use_depth_1: False
+  use_depth_2: False
   use_force: False
   use_tactile: False
   use_segmentation: False
 
 inference:
   model_file: 'models/2021-12-14-23_calib_best.pt' # relative to package.xml
-  use_camera_1: False
-  use_camera_2: False
+  use_rgb_1: False
+  use_rgb_2: False
   use_force: False
   use_tactile: False
   use_segmentation: False

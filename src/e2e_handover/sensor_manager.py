@@ -1,4 +1,6 @@
-from cv_bridge import CvBridge
+from cv_bridge import CvBridge, CvBridgeError
+from geometry_msgs.msg import WrenchStamped
+from sensor_msgs.msg import Image
 import numpy as np
 import rospy
 
@@ -11,18 +13,21 @@ except ImportError:
     print("Couldn't import papillarray")
 
 class SensorManager():
-    def __init__(self, use_camera_1, use_camera_2, use_force, use_tactile, use_segmentation):
-        self.use_camera_1, self.use_camera_2, self.use_force = use_camera_1, use_camera_2, use_force
-        self.use_tactile, self.use_segmentation = use_tactile, use_segmentation
+    def __init__(self, sensor_params):
+        (self.use_rgb_1, self.use_rgb_2, self.use_force, 
+            self.use_tactile, self.use_segmentation) = (sensor_params['use_rgb_1'], 
+            sensor_params['use_rgb_2'], sensor_params['use_force'], 
+            sensor_params['use_tactile'], sensor_params['use_segmentation'])
+
 
         self.img_rgb_1 = None
         self.img_rgb_2 = None
-        if use_camera_1:
+        if self.use_rgb_1:
             self.image_rgb_1_sub = rospy.Subscriber('/camera1/color/image_raw', Image, self.image_rgb_1_callback)
-        if use_camera_2:
+        if self.use_rgb_2:
             self.image_rgb_2_sub = rospy.Subscriber('/camera2/color/image_raw', Image, self.image_rgb_2_callback)
         
-        if use_force:
+        if self.use_force:
             self.force_sub = rospy.Subscriber('robotiq_ft_wrench', WrenchStamped, self.force_callback)
             self.raw_wrench_reading = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # [fx, fy, fz, mx, my, mz]
             self.calib_wrench_array = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) # [fx, fy, fz, mx, my, mz]
@@ -46,8 +51,8 @@ class SensorManager():
 
     def sensors_ready(self):
         remaining_sensors = [
-            self.use_camera_1 and self.img_rgb_1 is None,
-            self.use_camera_2 and self.img_rgb_2 is None,
+            self.use_rgb_1 and self.img_rgb_1 is None,
+            self.use_rgb_2 and self.img_rgb_2 is None,
             self.use_force and self.raw_wrench_reading is None,
             self.use_tactile and (self.tactile_1_readings is None or self.tactile_2_readings is None),
         ]
