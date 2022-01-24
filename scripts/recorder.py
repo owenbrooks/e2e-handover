@@ -110,7 +110,6 @@ class Recorder():
 
                 if self.recording_params['use_tactile']:
                     header += tactile.papillarray_keys
-                    header += tactile.papillarray_keys
             
                 datawriter.writerow(header)
 
