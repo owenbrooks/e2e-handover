@@ -60,38 +60,13 @@ class Recorder():
 
     def save_image(self, image, count, identifier):
         # Save image as png
-        image_name = f"{count}_{self.session_id}.png"
+        timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
+        image_name = f"{count}_{timestamp}.png"
         rel_path = os.path.join(identifier, image_name)
         image_path = os.path.join(self.data_dir, self.session_id, rel_path)
         cv2.imwrite(image_path, image)
 
         return rel_path
-
-    def record_row(self):
-        if self.recording_params['use_rgb_1']:       
-            rel_path_rgb_1 = self.save_image(self.sensor_manager.img_rgb_1, self.row_count, 'image_rgb_1')
-        if self.recording_params['use_rgb_2']:
-            rel_path_rgb_2 = self.save_image(self.sensor_manager.img_rgb_2, self.row_count, 'image_rgb_2')
-        
-        # Append numerical data and annotation to the session csv
-        csv_path = os.path.join(self.data_dir, self.session_id, self.session_id + '.csv')
-        with open(csv_path, 'a+') as csvfile:
-            datawriter = csv.writer(csvfile, delimiter=' ')
-            row = [self.gripper_is_open] + self.twist_array + self.filtered_twist_array
-
-            if self.recording_params['use_rgb_1']:
-                row.append(rel_path_rgb_1)
-            if self.recording_params['use_rgb_2']:
-                row.append(rel_path_rgb_2)
-            if self.recording_params['use_force']:
-                row += self.sensor_manager.raw_wrench_reading.tolist()
-
-            if self.recording_params['use_tactile']:
-                row += self.sensor_manager.tactile_1_readings
-                row += self.sensor_manager.tactile_2_readings
-
-            datawriter.writerow(row)
-            self.row_count += 1
 
     def start_recording(self):
         if self.is_recording:
@@ -137,6 +112,32 @@ class Recorder():
                 datawriter.writerow(header)
 
             rospy.loginfo("Started recording. Session: " + self.session_id)
+
+    def record_row(self):
+        if self.recording_params['use_rgb_1']:       
+            rel_path_rgb_1 = self.save_image(self.sensor_manager.img_rgb_1, self.row_count, 'image_rgb_1')
+        if self.recording_params['use_rgb_2']:
+            rel_path_rgb_2 = self.save_image(self.sensor_manager.img_rgb_2, self.row_count, 'image_rgb_2')
+        
+        # Append numerical data and annotation to the session csv
+        csv_path = os.path.join(self.data_dir, self.session_id, self.session_id + '.csv')
+        with open(csv_path, 'a+') as csvfile:
+            datawriter = csv.writer(csvfile, delimiter=' ')
+            row = [self.gripper_is_open] + self.twist_array + self.filtered_twist_array
+
+            if self.recording_params['use_rgb_1']:
+                row.append(rel_path_rgb_1)
+            if self.recording_params['use_rgb_2']:
+                row.append(rel_path_rgb_2)
+            if self.recording_params['use_force']:
+                row += self.sensor_manager.raw_wrench_reading.tolist()
+
+            if self.recording_params['use_tactile']:
+                row += self.sensor_manager.tactile_1_readings
+                row += self.sensor_manager.tactile_2_readings
+
+            datawriter.writerow(row)
+            self.row_count += 1
 
     def stop_recording(self):
         if not self.is_recording:

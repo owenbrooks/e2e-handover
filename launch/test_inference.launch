@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <node name="handover" pkg="e2e_handover" type="handover.py" output="screen">
+  <node name="handover" pkg="e2e_handover" type="inference.py" output="screen">
     <remap from="/camera1/color/image_raw" to="/image_publisher/image_raw" />
     <rosparam command="load" file="$(find e2e_handover)/param/handover_params.yaml" />
   </node>
