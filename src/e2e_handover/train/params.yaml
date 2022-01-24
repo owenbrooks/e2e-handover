@@ -10,6 +10,7 @@ log_step: 10 # step size for printing log info
 use_rgb_1: True
 use_rgb_2: False
 use_segmentation: False
-use_depth: False
+use_depth_1: False
+use_depth_2: False
 use_tactile: False
 use_force_torque: True

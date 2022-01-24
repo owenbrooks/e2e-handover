@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 from collections import namedtuple
+from datetime import datetime
 from e2e_handover.train.dataset import DeepHandoverDataset
 from e2e_handover.train.model import ResNet
 import numpy as np
@@ -44,11 +45,12 @@ def train(model, train_loader, test_loader, device, params):
     model.train()
 
     # Create directory and path for saving model
-    data_dir = os.path.dirname(params.data_file)
-    model_dir = os.path.join(current_dirname, '../../../models')
+    current_dirname = os.path.dirname(__file__)
+    model_dir = os.path.join(current_dirname, params.model_directory)
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
-    model_path = os.path.join(model_dir, 'model.pt')
+    timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
+    model_path = os.path.join(model_dir, f'model_{timestamp}.pt')
 
     criterion = nn.BCELoss()
 
@@ -59,9 +61,9 @@ def train(model, train_loader, test_loader, device, params):
         model.train()
         for i, data in enumerate(train_loader):
             # get the inputs
-            img = torch.Tensor(data[0]).to(device)
-            forces = torch.Tensor(data[1]).to(device)
-            gripper_is_open = torch.Tensor(data[2]).to(device)
+            img = torch.Tensor(data['image']).to(device)
+            forces = torch.Tensor(data['force']).to(device)
+            gripper_is_open = torch.Tensor(data['gripper_is_open']).to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -105,9 +107,9 @@ def log_predictions(model, test_loader, device):
 
     with torch.no_grad:
         for img_id, data in enumerate(test_loader):
-            img = torch.Tensor(data[0]).to(device)
-            forces = torch.Tensor(data[1]).to(device)
-            gripper_is_open = torch.Tensor(data[2]).to(device)[0][0]
+            img = torch.Tensor(data['image']).to(device)
+            forces = torch.Tensor(data['force']).to(device)
+            gripper_is_open = torch.Tensor(data['gripper_is_open']).to(device)[0][0]
 
             guess_label = model(img, forces)[0][0]
             test_table.add_data(img_id, wandb.Image(img), \
@@ -126,9 +128,9 @@ def test(model, test_loader, criterion, device):
     with torch.no_grad():
         for i, data in enumerate(test_loader, 0):
             # get the inputs
-            img = torch.Tensor(data[0]).to(device)
-            forces = torch.Tensor(data[1]).to(device)
-            labels = torch.Tensor(data[2]).to(device)
+            img = torch.Tensor(data['image']).to(device)
+            forces = torch.Tensor(data['force']).to(device)
+            labels = torch.Tensor(data['gripper_is_open']).to(device)
 
             # forward + backward + optimize
             outputs = model(img, forces)

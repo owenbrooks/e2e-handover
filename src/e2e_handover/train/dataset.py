@@ -33,16 +33,15 @@ class DeepHandoverDataset(Dataset):
         return len(self.img_labels)
 
     def __getitem__(self, idx):
-        current_dirname = os.path.dirname(__file__)
-        image_rel_path = self.img_labels.iloc[idx, 0]
+        image_rel_path = self.img_labels['image_rgb_1'][0]
         img_path = os.path.join(self.data_dir, image_rel_path)
         image = Image.open(img_path).convert('RGB') # this RGB conversion means it works on the binary segmented images too
 
         if self.use_segmentation:
             # stack segmented image to create a 4D image
             seg_image_rel_path = self.img_labels['image_seg_1'].iloc[idx]
-            seg_image_path = os.path.join(data_dir, seg_image_rel_path)
-            segmented_image = Image.open(segmented_image_path).convert()
+            seg_image_path = os.path.join(self.data_dir, seg_image_rel_path)
+            segmented_image = Image.open(seg_image_path).convert()
             rgb_np = np.asarray(image)
             seg_np = np.asarray(segmented_image)
             image_np = np.stack([rgb_np[:,:,0], rgb_np[:,:,1], rgb_np[:,:,2], seg_np], axis=-1)
@@ -70,4 +69,4 @@ class DeepHandoverDataset(Dataset):
         sample['force'] = force_tensor
         sample['gripper_is_open'] = gripper_state_tensor
 
-        return image_tensor, force_tensor, gripper_state_tensor
+        return sample
