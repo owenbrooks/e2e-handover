@@ -10,13 +10,13 @@ from pynput import keyboard
 from robotiq_2f_gripper_control.msg import  _Robotiq2FGripper_robot_input as inputMsg
 import rospkg
 import rospy
+from sensor_msgs.msg import Joy
 from std_msgs.msg import Bool
 
 # Class to record data 
 # Data is stored in 'data/${SESSION_ID}' folder, where SESSION_ID is unique timestamp
 # Images are stored in that folder with index and session id as name
 # Each session folder has a csv with numerical data and gripper state associated with image name
-image_classes = ['rgb_1', 'rgb_2', 'depth_1', 'depth_2']
 
 class Recorder():
     def __init__(self):
@@ -24,6 +24,7 @@ class Recorder():
         self.twist_sub = rospy.Subscriber('/twist_cmd_raw', Twist, self.twist_callback)
         self.filtered_twist_sub = rospy.Subscriber('/twist_cmd_filtered', Twist, self.filtered_twist_callback)
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
+        self.joy_sub = rospy.Subscriber('joy', Joy, self.joy_callback) # joystick control
 
         self.recording_pub = rospy.Publisher('~is_recording', Bool, queue_size=10)
 
@@ -38,6 +39,11 @@ class Recorder():
 
         self.recording_params = rospy.get_param('~recording')
         self.sensor_manager = SensorManager(self.recording_params)
+
+        self.image_classes = []
+        for key in ['rgb_1', 'rgb_2', 'depth_1', 'depth_2']:
+            if self.recording_params['use_' + key]:
+                self.image_classes.append(key)
 
         # Create folder for storing recorded images and the csv with numerical/annotation data
         rospack = rospkg.RosPack()
@@ -80,13 +86,12 @@ class Recorder():
             self.session_id = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
             session_dir = os.path.join(self.data_dir, self.session_id)
 
-            for image_class in image_classes:
-                if self.recording_params['use_' + image_class]:
-                    image_dir = os.path.join(session_dir, 'image_' + image_class)
-                    os.makedirs(image_dir)
+            for image_class in self.image_classes:
+                image_dir = os.path.join(session_dir, 'image_' + image_class)
+                os.makedirs(image_dir)
         
             # Create csv file for recording numerical data and annotation in the current session
-            fname = os.path.join(session_dir, self.session_id + '.csv')
+            fname = os.path.join(self.data_dir, self.session_id, self.session_id + '.csv')
             with open(fname, 'w+') as csvfile:
                 datawriter = csv.writer(csvfile, delimiter=' ',
                                         quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -97,9 +102,8 @@ class Recorder():
                 
                 header = ['gripper_is_open'] + twist_header + filtered_twist_header
                 
-                for image_class in image_classes:
-                    if self.recording_params['use_' + image_class]:
-                        header.append('image_' + image_class)
+                for image_class in self.image_classes:
+                    header.append('image_' + image_class)
 
                 if self.recording_params['use_force']:
                     header += wrench_header
@@ -120,15 +124,14 @@ class Recorder():
             row = [self.gripper_is_open] + self.twist_array + self.filtered_twist_array
 
             image_data = {
-                image_classes[0]: self.sensor_manager.img_rgb_1,
-                image_classes[1]: self.sensor_manager.img_rgb_2,
-                image_classes[2]: self.sensor_manager.img_depth_1,
-                image_classes[3]: self.sensor_manager.img_depth_2,
+                'rgb_1': self.sensor_manager.img_rgb_1,
+                'rgb_2': self.sensor_manager.img_rgb_2,
+                'depth_1': self.sensor_manager.img_depth_1,
+                'depth_2': self.sensor_manager.img_depth_2,
             }
-            for image_class in image_classes:
-                if self.recording_params['use_' + image_class]:       
-                    rel_path = self.save_image(image_data[image_class], self.row_count, 'image_' + image_class)
-                    row.append(rel_path)
+            for image_class in self.image_classes:
+                rel_path = self.save_image(image_data[image_class], self.row_count, 'image_' + image_class)
+                row.append(rel_path)
 
             if self.recording_params['use_force']:
                 row += self.sensor_manager.raw_wrench_reading.tolist()
@@ -162,6 +165,11 @@ class Recorder():
                 self.toggle_recording()
         except AttributeError: # special keys (ctrl, alt, etc.) will cause this exception
             pass
+
+    def joy_callback(self, joy_msg):
+        share_pressed = joy_msg.buttons[8]
+        if share_pressed:
+            self.toggle_recording()
 
     def run(self):
         rate = rospy.Rate(30)

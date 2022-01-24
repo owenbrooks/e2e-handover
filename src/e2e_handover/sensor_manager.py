@@ -28,12 +28,12 @@ class SensorManager():
         if self.use_rgb_2:
             self.image_rgb_2_sub = rospy.Subscriber('/camera2/color/image_raw', Image, self.image_rgb_2_callback)
         
-        self.depth_1 = None
-        self.depth_2 = None
+        self.img_depth_1 = None
+        self.img_depth_2 = None
         if self.use_depth_1:
-            self.image_depth_1_sub = rospy.Subscriber('/camera1/depth/image_raw', Image, self.image_depth_1_callback)
+            self.image_depth_1_sub = rospy.Subscriber('/camera1/depth/image_rect_raw', Image, self.image_depth_1_callback)
         if self.use_depth_2:
-            self.image_depth_2_sub = rospy.Subscriber('/camera2/depth/image_raw', Image, self.image_depth_2_callback)
+            self.image_depth_2_sub = rospy.Subscriber('/camera2/depth/image_rect_raw', Image, self.image_depth_2_callback)
         
         if self.use_force:
             self.force_sub = rospy.Subscriber('robotiq_ft_wrench', WrenchStamped, self.force_callback)
@@ -61,9 +61,13 @@ class SensorManager():
         remaining_sensors = [
             self.use_rgb_1 and self.img_rgb_1 is None,
             self.use_rgb_2 and self.img_rgb_2 is None,
+            self.use_depth_1 and self.img_depth_1 is None,
+            self.use_depth_2 and self.img_depth_2 is None,
             self.use_force and self.raw_wrench_reading is None,
             self.use_tactile and (self.tactile_1_readings is None or self.tactile_2_readings is None),
         ]
+
+        # rospy.logwarn(f"{remaining_sensors}")
 
         return not any(remaining_sensors)
 

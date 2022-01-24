@@ -75,12 +75,13 @@ class HandoverNode():
 
     def spin_inference(self):
         if self.is_inference_active and self.sensor_manager.sensors_ready() and self.net is not None:
-            img_rgb_1 = self.sensor_manager.img_rgb_1[:, :, ::-1]
-            img_rgb_1_t = prepare_image(img_rgb_1).unsqueeze_(0).to(self.device)
-            forces_t = torch.autograd.Variable(torch.FloatTensor(self.calib_wrench_array)).unsqueeze_(0).to(self.device)
+            # img_rgb_1 = self.sensor_manager.img_rgb_1[:, :, ::-1]
+            # img_rgb_1_t = prepare_image(img_rgb_1).unsqueeze_(0).to(self.device)
+            # forces_t = torch.autograd.Variable(torch.FloatTensor(self.calib_wrench_array)).unsqueeze_(0).to(self.device)
 
-            output_t = self.net(img_rgb_1_t, forces_t)
-            self.model_output = output_t.cpu().detach().numpy()[0][0]
+            # output_t = self.net(img_rgb_1_t, forces_t)
+            # self.model_output = output_t.cpu().detach().numpy()[0][0]
+            pass
 
     def gripper_state_callback(self, gripper_input_msg):
         self.obj_det_state = obj_msg_to_enum[gripper_input_msg.gOBJ]
