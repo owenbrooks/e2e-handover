@@ -13,16 +13,15 @@ class DeepHandoverDataset(Dataset):
         data_dir = os.path.dirname(annotations_file)
 
         self.img_labels = pd.read_csv(annotations_file, sep=' ')
-        print(self.img_labels)
         self.data_dir = data_dir
         self.transform = transform
         self.target_transform = target_transform
-        self.use_segmentation = params.use_segmentation
+        self.params = params
 
         if self.transform == None:
             # first three values are standard for ResNet
-            mean = [0.485, 0.456, 0.406, 0.5] if self.use_segmentation else [0.485, 0.456, 0.406]
-            std = [0.229, 0.224, 0.225, 0.225] if self.use_segmentation else [0.229, 0.224, 0.225]
+            mean = [0.485, 0.456, 0.406, 0.5] if self.params.use_segmentation else [0.485, 0.456, 0.406]
+            std = [0.229, 0.224, 0.225, 0.225] if self.params.use_segmentation else [0.229, 0.224, 0.225]
 
             self.transform = transforms.Compose([
                 transforms.Resize((224,224)),
@@ -38,7 +37,7 @@ class DeepHandoverDataset(Dataset):
         img_path = os.path.join(self.data_dir, image_rel_path)
         image = Image.open(img_path).convert('RGB') # this RGB conversion means it works on the binary segmented images too
 
-        if self.use_segmentation:
+        if self.params.use_segmentation:
             # stack segmented image to create a 4D image
             seg_image_rel_path = self.img_labels['image_seg_1'].iloc[idx]
             seg_image_path = os.path.join(self.data_dir, seg_image_rel_path)
@@ -69,5 +68,16 @@ class DeepHandoverDataset(Dataset):
         sample['image'] = image_tensor
         sample['force'] = force_tensor
         sample['gripper_is_open'] = gripper_state_tensor
+
+        if self.params.output_velocity:
+            vel_cmd_tensor = torch.Tensor([
+                self.img_labels["vx"][idx],
+                self.img_labels["vy"][idx],
+                self.img_labels["vz"][idx],
+                self.img_labels["wx"][idx],
+                self.img_labels["wy"][idx],
+                self.img_labels["wz"][idx],
+            ])
+            sample['vel_cmd'] = vel_cmd_tensor
 
         return sample
