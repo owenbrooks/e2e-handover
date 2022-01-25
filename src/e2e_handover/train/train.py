@@ -50,7 +50,9 @@ def train(model, train_loader, test_loader, device, params):
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
     timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
-    model_path = os.path.join(model_dir, f'model_{timestamp}.pt')
+
+    param_string = build_param_string(params)
+    model_path = os.path.join(model_dir, f'model_{timestamp}{param_string}.pt')
 
     criterion = nn.BCELoss()
 
@@ -94,6 +96,25 @@ def train(model, train_loader, test_loader, device, params):
 
     log_predictions(model, test_loader, device)
     print('Finished training')
+
+def build_param_string(params):
+    param_string = ""
+    if params.use_rgb_1:
+        param_string += "_rgb1"
+    if params.use_rgb_2:
+        param_string += "_rgb2"
+    if params.use_segmentation:
+        param_string += "_seg"
+    if params.use_depth_1:
+        param_string += "_depth1"
+    if params.use_depth_2:
+        param_string += "_depth2"
+    if params.use_tactile:
+        param_string += "_tact"
+    if params.use_force_torque:
+        param_string += "_force"
+
+    return param_string
 
 def log_predictions(model, test_loader, device):
     # create a Table with the same columns as above,

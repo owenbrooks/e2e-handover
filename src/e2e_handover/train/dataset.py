@@ -13,6 +13,7 @@ class DeepHandoverDataset(Dataset):
         data_dir = os.path.dirname(annotations_file)
 
         self.img_labels = pd.read_csv(annotations_file, sep=' ')
+        print(self.img_labels)
         self.data_dir = data_dir
         self.transform = transform
         self.target_transform = target_transform
