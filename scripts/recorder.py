@@ -54,10 +54,13 @@ class Recorder():
             os.makedirs(self.data_dir)
 
     def gripper_state_callback(self, gripper_input_msg):
+        # print(gripper_input_msg)
         position_requested = gripper_input_msg.gPR
         # should have value 0x00 for open, 0xFF for closed
-        if position_requested == 0x00:
+        if position_requested == 0:
             self.gripper_is_open = True
+        else:
+            self.gripper_is_open = False
 
     def twist_callback(self, twist_msg):
         self.twist_array = [twist_msg.linear.x, twist_msg.linear.y, twist_msg.linear.z, twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z]

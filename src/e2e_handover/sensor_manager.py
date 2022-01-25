@@ -43,7 +43,7 @@ class SensorManager():
         
         self.abs_z_force = 0.0
 
-        if use_tactile:
+        if self.use_tactile:
             self.tactile_1_sub = rospy.Subscriber('/hub_0/sensor_0', SensorState, self.tactile_1_callback)
             self.tactile_2_sub = rospy.Subscriber('/hub_0/sensor_1', SensorState, self.tactile_2_callback)
         

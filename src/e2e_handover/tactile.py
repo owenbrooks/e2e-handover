@@ -7,7 +7,7 @@ for sensor in [1, 2]:
 
     for i in range(9):
         for key in pillar_disp_force:
-            papillarray_keys.append(f'tact_{i}_{key}')
+            papillarray_keys.append(f'tact_{sensor}_pil_{i}_{key}')
 
 def sensor_state_to_list(msg):
     values = [msg.gfX, msg.gfY, msg.gfZ, msg.gtX, msg.gtY, msg.gtZ]

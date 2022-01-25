@@ -7,7 +7,7 @@ recording:
   use_depth_1: True
   use_depth_2: True
   use_force: True
-  use_tactile: False
+  use_tactile: True
   use_segmentation: False
 
 inference:
