@@ -29,7 +29,7 @@ def main(params):
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, num_workers=params.num_workers, pin_memory=True)
 
     # Load pre-trained resnet18 model weights
-    model = ResNet()
+    model = ResNet(params)
     # resnet18_url = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
     # state_dict = torch.hub.load_state_dict_from_url(resnet18_url)
     # model.load_partial_state_dict(state_dict)
@@ -54,6 +54,8 @@ def train(model, train_loader, test_loader, device, params):
     param_string = build_param_string(params)
     model_path = os.path.join(model_dir, f'model_{timestamp}{param_string}.pt')
 
+    BCE = nn.BCELoss()
+    MSE = nn.MSELoss()
     criterion = nn.BCELoss()
 
     # Training loop
@@ -63,16 +65,25 @@ def train(model, train_loader, test_loader, device, params):
         model.train()
         for i, data in enumerate(train_loader):
             # get the inputs
-            img = torch.Tensor(data['image']).to(device)
-            forces = torch.Tensor(data['force']).to(device)
-            gripper_is_open = torch.Tensor(data['gripper_is_open']).to(device)
+            input_img = torch.Tensor(data['image']).to(device)
+            input_forces = torch.Tensor(data['force']).to(device)
+            target_gripstate = torch.Tensor(data['gripper_is_open']).to(device)
+
+            if params.output_velocity:
+                target_vel_cmd = torch.Tensor(data['vel_cmd']).to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            outputs = model(img, forces)
-            loss = criterion(outputs, gripper_is_open)
+            outputs = model(input_img, input_forces)
+            pred_gripstate = outputs[:, 0].unsqueeze(1)
+
+            if params.output_velocity:
+                pred_vel_cmd = outputs[:, 1:7]
+                loss = BCE(pred_gripstate, target_gripstate) + MSE(pred_vel_cmd, target_vel_cmd)
+            else:
+                loss = BCE(pred_gripstate, target_gripstate)
 
             loss.backward()
             optimizer.step()
@@ -84,7 +95,7 @@ def train(model, train_loader, test_loader, device, params):
                 print('Epoch %d. batch loss: %0.5f' %(epoch + 1, loss.data))
 
         train_loss = running_loss / len(train_loader)
-        test_loss, test_accuracy = test(model, test_loader, criterion, device)
+        test_loss, test_accuracy = test(model, test_loader, BCE, MSE, device, params)
 
         # Log loss in weights and biases
         wandb.log({"train_loss": train_loss, "test_loss": test_loss, 'test_acc': test_accuracy})
@@ -94,7 +105,7 @@ def train(model, train_loader, test_loader, device, params):
 
         torch.save(model.state_dict(), model_path)
 
-    log_predictions(model, test_loader, device)
+    # log_predictions(model, test_loader, device)
     print('Finished training')
 
 def build_param_string(params):
@@ -139,7 +150,7 @@ def log_predictions(model, test_loader, device):
     wandb.log({"table_key": test_table})
 
 
-def test(model, test_loader, criterion, device):
+def test(model, test_loader, bce, mse, device, params):
     running_loss = 0.0
     running_correct = 0
     running_total = 0
@@ -149,18 +160,25 @@ def test(model, test_loader, criterion, device):
     with torch.no_grad():
         for i, data in enumerate(test_loader, 0):
             # get the inputs
-            img = torch.Tensor(data['image']).to(device)
-            forces = torch.Tensor(data['force']).to(device)
-            labels = torch.Tensor(data['gripper_is_open']).to(device)
+            input_img = torch.Tensor(data['image']).to(device)
+            input_forces = torch.Tensor(data['force']).to(device)
+            target_gripstate = torch.Tensor(data['gripper_is_open']).to(device)
+
+            if params.output_velocity:
+                target_vel_cmd = torch.Tensor(data['vel_cmd']).to(device)
 
             # forward + backward + optimize
-            outputs = model(img, forces)
-            loss = criterion(outputs, labels)
+            outputs = model(input_img, input_forces)
+            pred_gripstate = outputs[:, 0].unsqueeze(1)
 
-            output_thresh = outputs.cpu().data.numpy() > 0.5
+            if params.output_velocity:
+                pred_vel_cmd = outputs[:, 1:7]
+                loss = bce(pred_gripstate, target_gripstate) + mse(pred_vel_cmd, target_vel_cmd)
+            else:
+                loss = bce(pred_gripstate, target_gripstate)
 
-            correct = output_thresh == labels.cpu().data.numpy()
-            # print(correct)
+            output_thresh = pred_gripstate.cpu().data.numpy() > 0.5
+            correct = output_thresh == target_gripstate.cpu().data.numpy()
             correct_sum = np.sum(correct)
 
             running_correct += correct_sum

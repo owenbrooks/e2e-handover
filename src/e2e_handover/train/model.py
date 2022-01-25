@@ -1,10 +1,7 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env python3
 import torch
 import torch.nn as nn
 import math
-import os
-
 
 def conv3x3(in_planes, out_planes, stride=1):
     "3x3 convolution with padding"
@@ -46,8 +43,9 @@ class BasicBlock(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block = BasicBlock, layers = [2,2,2,2]):
-        input_channels = 4 if os.environ.get('use_segmentation') else 3
+    def __init__(self, params, block = BasicBlock, layers = [2,2,2,2]):
+        input_channels = 4 if params.use_segmentation else 3
+        output_neurons = 7 if params.output_velocity else 1
 
         self.inplanes = 64
         super(ResNet, self).__init__()
@@ -62,12 +60,12 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-        self.conv2 = nn.Conv2d(512,16,kernel_size=1, stride=1)
+        self.conv2 = nn.Conv2d(512, 16, kernel_size=1, stride=1)
         self.bn2 = nn.BatchNorm2d(16)
         self.fc1 = nn.Linear(16 * 7 * 7 * block.expansion + 6, 256)
         self.fc2 = nn.Linear(256, 128)
         self.fc3 = nn.Linear(128, 64)
-        self.fc4 = nn.Linear(64, 1)
+        self.fc4 = nn.Linear(64, output_neurons)
 
         #Overwrite the default random weights
         for m in self.modules():
