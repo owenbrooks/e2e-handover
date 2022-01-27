@@ -44,7 +44,17 @@ class BasicBlock(nn.Module):
 class ResNet(nn.Module):
 
     def __init__(self, params, block = BasicBlock, layers = [2,2,2,2]):
-        input_channels = 4 if params.use_segmentation else 3
+        input_channels = 0
+        channel_addition = [ 
+            (params.use_rgb_1, 3),
+            (params.use_rgb_2, 3),
+            (params.use_depth_1, 1),
+            (params.use_depth_2, 1),
+        ]
+        for used, channels in channel_addition:
+            if used:
+                input_channels += channels
+
         output_neurons = 7 if params.output_velocity else 1
 
         self.inplanes = 64
