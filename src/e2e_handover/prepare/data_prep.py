@@ -53,27 +53,25 @@ def calibrate_forces(session_id: str, static_index: int):
     df.to_csv(calib_annotations_file, sep=' ', index=False)
     print(f"Calibrated force readings for {calib_annotations_file}")
 
-def combine_sessions(session_list, out_session_id):
-    current_dirname = os.path.dirname(__file__)
-    data_dir = os.path.join(current_dirname, '../../../data')
-    out_session_dir = os.path.join(data_dir, out_session_id)
-    out_annotations_path = os.path.join(out_session_dir, out_session_id + '.csv')
+def combine_sessions(csv_list, out_session_id):
+    out_annotations_path = os.path.abspath(out_session_id) # path to csv file
+    out_session_dir = os.path.dirname(out_annotations_path)
 
     out_image_dir = os.path.join(out_session_dir, 'images')
     if not os.path.exists(out_session_dir):
         os.makedirs(out_image_dir)
 
     # Combine csv files
-    in_frames = [pd.read_csv(os.path.join(data_dir, session_id, session_id + '.csv'), sep=' ') for session_id in session_list]
+    in_frames = [pd.read_csv(path, sep=' ') for path in csv_list]
     out_df = pd.concat(in_frames)        
     out_df.to_csv(out_annotations_path, sep=' ', index=False)
 
     print(f'CSV files combined, copying {len(out_df.index)} images (may take a while)')
 
     # Copy images
-    in_image_dirs = [os.path.join(data_dir, session_id, 'images') for session_id in session_list]
-    for in_dir in in_image_dirs:
-        shutil.copytree(in_dir, out_image_dir, dirs_exist_ok=True)
+    # in_image_dirs = [os.path.join(data_dir, session_id, 'images') for session_id in session_list]
+    # for in_dir in in_image_dirs:
+    #     shutil.copytree(in_dir, out_image_dir, dirs_exist_ok=True)
 
 def segment(session_id: str):
     """ Performs segmentation to convert images to a binary mask of person/non-person """
@@ -112,7 +110,7 @@ if __name__ == "__main__":
 
     subparsers = parser.add_subparsers(dest='subcommand')
     parser_combine = subparsers.add_parser('combine')
-    parser_combine.add_argument('-l', nargs="+", required=True, help="list of session ids to combine", dest="session_list")
+    parser_combine.add_argument('-l', nargs="+", required=True, help="list of csv files to combine", dest="session_list")
 
     args = parser.parse_args()
 
