@@ -7,8 +7,8 @@ learning_rate: 0.001
 num_workers: 4
 log_step: 10 # step size for printing log info
 
-use_rgb_1: True
-use_rgb_2: False
+use_rgb_1: False
+use_rgb_2: True
 use_depth_1: False
 use_depth_2: False
 use_tactile: False

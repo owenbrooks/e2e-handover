@@ -16,6 +16,7 @@ import yaml
 
 def main(params):
     print("Beginning training. Data: " + params.data_file)
+    print(params)
     dataset = DeepHandoverDataset(params)
     # random.shuffle(dataset.img_annotation_path_pairs)
 
@@ -30,9 +31,9 @@ def main(params):
 
     # Load pre-trained resnet18 model weights
     model = ResNet(params)
-    # resnet18_url = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
-    # state_dict = torch.hub.load_state_dict_from_url(resnet18_url)
-    # model.load_partial_state_dict(state_dict)
+    resnet18_url = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
+    state_dict = torch.hub.load_state_dict_from_url(resnet18_url)
+    model.load_partial_state_dict(state_dict)
 
     # Set device to GPU if available, otherwise CPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -56,7 +57,6 @@ def train(model, train_loader, test_loader, device, params):
 
     BCE = nn.BCELoss()
     MSE = nn.MSELoss()
-    criterion = nn.BCELoss()
 
     # Training loop
     optimizer = optim.SGD(model.parameters(), lr=params.learning_rate, momentum=0.9)
@@ -178,11 +178,13 @@ def test(model, test_loader, bce, mse, device, params):
                 loss = bce(pred_gripstate, target_gripstate)
 
             output_thresh = pred_gripstate.cpu().data.numpy() > 0.5
-            correct = output_thresh == target_gripstate.cpu().data.numpy()
+            correct = output_thresh == target_gripstate.cpu().data.numpy().astype(bool)
             correct_sum = np.sum(correct)
 
             running_correct += correct_sum
-            running_total = running_total + len(output_thresh)
+            running_total += len(output_thresh)
+
+            # print(f"out: {pred_gripstate.cpu().data.numpy()}, targ: {target_gripstate.cpu().data.numpy().astype(bool)}, correct: {running_correct}/{running_total}")
 
             # print statistics
             running_loss += float(loss.data)
