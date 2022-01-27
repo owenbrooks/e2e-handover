@@ -1,18 +1,19 @@
-import cv2
-import numpy as np
-import pandas as pd
-import os
 import argparse
+import cv2
+from collections import namedtuple
 from e2e_handover.train import model
 from e2e_handover.image_ops import prepare_image
 from e2e_handover.segmentation import Segmentor
+import numpy as np
+import os
+import pandas as pd
+import sys
 import torch
+import yaml
 
-def main(session_id, model_name, should_segment):
-    current_dirname = os.path.dirname(__file__)
-    data_dir = os.path.join(current_dirname, '../../../data')
-    annotations_file = os.path.join(data_dir, session_id, session_id + '.csv')
-    df = pd.read_csv(annotations_file, sep=' ')
+def main(annotations_path, model_name, should_segment, params):
+    data_dir = os.path.dirname(annotations_path)
+    df = pd.read_csv(annotations_path, sep=' ')
 
     if should_segment:
         segmentor = Segmentor()
@@ -21,7 +22,7 @@ def main(session_id, model_name, should_segment):
 
     if not args.ground_truth:
         # Create network and load weights
-        net = model.ResNet()
+        net = model.ResNet(params)
         current_dirname = os.path.dirname(__file__)
         model_path = os.path.join(current_dirname, '../../../models', model_name)
         net.load_state_dict(torch.load(model_path))
@@ -30,21 +31,21 @@ def main(session_id, model_name, should_segment):
         net.to(device)
         net.eval()
 
-    index = 0
+    index = 5000
     while True:
         row = df.iloc[index]
-        image_path = os.path.join(data_dir, session_id, 'images', row['image_id'])
+        image_rel_path = row['image_rgb_1']
+        image_path = os.path.join(data_dir, image_rel_path)
         img = cv2.imread(image_path)
 
         if should_segment:
             binary_mask = segmentor.person_binary_inference(img)
             img = np.array(binary_mask*255, dtype=np.uint8)
             # img = img[binary_mask]
-
         else:
             img_t = prepare_image(img).unsqueeze_(0).to(device)
             wrench_array = row[['fx', 'fy', 'fz', 'mx', 'my', 'mz']].values.astype(np.float32)
-            forces_t = torch.autograd.Variable(torch.FloatTensor(wrench_array)).unsqueeze_(0).to(device)
+            forces_t = torch.Tensor(wrench_array).unsqueeze_(0).to(device)
 
             # forward + backward + optimize
             output_t = net(img_t, forces_t)
@@ -74,8 +75,21 @@ def main(session_id, model_name, should_segment):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--ground-truth', action='store_true')
-    parser.add_argument('--model-name', type=str, default='2021-12-14-23_calib.pt')
-    parser.add_argument('--session', type=str, default='2021-12-14-23_calib')
+    parser.add_argument('--model', type=str, default='2021-12-14-23_calib.pt')
     parser.add_argument('--segment', action='store_true')
-    args = parser.parse_args()
-    main(args.session, args.model_name, args.segment)
+    parser.add_argument('--data', type=str, help='path of csv file to run on e.g. data/2021-12-09-04:56:05/raw.csv')
+
+    current_dirname = os.path.dirname(__file__)
+    params_path = os.path.join(current_dirname, 'params.yaml')
+    with open(params_path, 'r') as stream:
+        try:
+            params = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+            sys.exit(1)
+
+        args = parser.parse_args()
+        params['data_file'] = args.data
+
+        params = namedtuple("Params", params.keys())(*params.values())
+        main(args.data, args.model, args.segment, params)
