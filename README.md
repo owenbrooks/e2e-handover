@@ -92,6 +92,13 @@ Running in gazebo
 Combine datasets:
 `python3 src/e2e_handover/prepare/data_prep.py --session 2021-12-17-tactile combine -l 2021-12-17-00:55:09 2021-12-17-01:01:44`
 
+Running position node in gazebo
+
+- `roslaunch ur_gazebo ur5_bringup.launch`
+- `roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch sim:=true`
+- `roslaunch ur5_moveit_config moveit_rviz.launch rviz_config:=$(rospack find ur5_moveit_config)/launch/moveit.rviz`
+- `rosrun e2e_handover position`
+
 ## Pairing controller
 - For DualShock PS4 controller, press and hold both the Share and PS buttons.
 - Open Bluetooth settings and click on 'Wireless controller' to pair.
