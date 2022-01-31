@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Model based on https://github.com/acosgun/deep_handover/blob/master/src/pytorch/model.py
 import torch
 import torch.nn as nn
 import math

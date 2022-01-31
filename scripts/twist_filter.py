@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Based on https://github.com/acosgun/deep_handover/blob/master/src/state_machine.py
 import rospy
 from geometry_msgs.msg import TwistStamped, Twist
 import numpy as np

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Based on https://github.com/acosgun/deep_handover/blob/master/src/state_machine.py
 import rospy
 import sensor_msgs.msg
 from geometry_msgs.msg import Twist
