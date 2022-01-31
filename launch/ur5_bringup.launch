@@ -1,4 +1,5 @@
 <?xml version="1.0"?>
+<!-- Loads the twist_controller (for joystick control) instead of pos_joint_traj -->
 <launch>
   <arg name="debug" default="false" doc="Debug flag that will get passed on to ur_common.launch"/>
   <arg name="robot_ip" doc="IP address by which the robot can be reached."/>
