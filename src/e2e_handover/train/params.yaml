@@ -14,5 +14,6 @@ use_depth_2: True
 use_tactile: False
 use_force_torque: True
 use_segmentation: False
+use_lstm: True
 
 output_velocity: False

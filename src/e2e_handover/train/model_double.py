@@ -26,8 +26,13 @@ class ResNetBackbone(ResNet):
 
 
 class MultiViewResNet(nn.Module):
+    """ This model consists of one or optionally two ResNet backbones, 
+    followed by fully connected layers of ResNet or optionally an LSTM.
+    Options should be configured in params.yaml. It accepts RGB or RGBD 
+    images as input. """
     def __init__(self, params):
         super(MultiViewResNet, self).__init__()
+        self.params = params
         self.backbone1 = ResNetBackbone(params)
         self.backbone2 = ResNetBackbone(params)
 
@@ -36,30 +41,50 @@ class MultiViewResNet(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.sigmoid = nn.Sigmoid()
 
-        self.fc1 = nn.Linear(16 * 7 * 7 * 2 + 6, 256)
-        self.fc2 = nn.Linear(256, 128)
-        self.fc3 = nn.Linear(128, 64)
-        self.fc4 = nn.Linear(64, output_neurons)
+        if self.params.use_lstm:
+            self.lstm1 = nn.LSTM(input_size=16*7*7*2+6, hidden_size=256)
+            self.lstm2 = nn.LSTM(input_size=256, hidden_size=128)
+            self.fc1 = nn.Linear(128, 64)
+            self.fc2 = nn.Linear(64, output_neurons)
+        else:
+            self.fc1 = nn.Linear(16*7*7*2+6, 256)
+            self.fc2 = nn.Linear(256, 128)
+            self.fc3 = nn.Linear(128, 64)
+            self.fc4 = nn.Linear(64, output_neurons)
 
     def forward(self, img, forces):
-        # split the image tensor into the two images
-        channels_per_image = img.shape[1]//2
-        img_1 = img[:, :channels_per_image, :, :]
-        img_2 = img[:, channels_per_image:, :, :]
+        if self.params.use_rgb_1 and self.params.use_rgb_2:
+            # split the image tensor into the two images
+            channels_per_image = img.shape[1]//2
+            img_1 = img[:, :channels_per_image, :, :]
+            img_2 = img[:, channels_per_image:, :, :]
 
-        x1 = self.backbone1(img_1)
-        x2 = self.backbone2(img_2)
-        
-        x = torch.cat((x1, x2,forces), dim=1)
+            x1 = self.backbone1(img_1)
+            x2 = self.backbone2(img_2)
+            
+            x = torch.cat((x1, x2, forces), dim=1)
+        else: # only one image
+            x = self.backbone1(img)
+            x = torch.cat((x, forces), dim=1)
 
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.fc2(x)
-        x = self.relu(x)
-        x = self.fc3(x)
-        x = self.relu(x)
-        x = self.fc4(x)
-        x = self.sigmoid(x)
+        if self.params.use_lstm:
+            x = self.lstm1(x)
+            x = self.relu(x)
+            x = self.lstm2(x)
+            x = self.relu(x)
+            x = self.fc1(x)
+            x = self.relu(x)
+            x = self.fc2(x)
+            x = self.sigmoid(x)
+        else:
+            x = self.fc1(x)
+            x = self.relu(x)
+            x = self.fc2(x)
+            x = self.relu(x)
+            x = self.fc3(x)
+            x = self.relu(x)
+            x = self.fc4(x)
+            x = self.sigmoid(x)
         return x
 
     def load_partial_state_dict(self,pretrained_dict):
@@ -85,31 +110,5 @@ class MultiViewResNet(nn.Module):
 
 if __name__ == "__main__":
     net = MultiViewResNet()
-    # print(net)
     state_dict = torch.load('resnet18-5c106cde.pth')
     net.load_partial_state_dict(state_dict)
-
-    # net.eval()
-    # net.cuda()
-
-    # normalize = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
-
-    # n = 1
-    # t1 = time.time()
-    # for i in range(n):
-    #     img = torch.autograd.Variable(torch.rand(1,3,224,224)).float().cuda()
-    #     out = net(img)
-    #     out = out.data.cpu().numpy()
-    #     label = np.argmax(out)
-    #     print("Frame %i: %i" % (i,label))
-    # t2 = time.time()
-
-    # fps = n / (t2-t1)
-    # print("fps",fps)
-
-    # weight_sum = 0
-    # for name,parameter in net.named_parameters():
-    #     weights = np.prod(parameter.shape)
-    #     weight_sum += weights
-    #     print(name,weights)
-    # print("total weights",weight_sum)
