@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+# Model based on https://github.com/acosgun/deep_handover/blob/master/src/pytorch/model.py
+import torch
+import torch.nn as nn
+from e2e_handover.train.model import ResNet
+
+class ResNetBackbone(ResNet):
+    """ Consists of ResNet up to but not including the fully connected layers """
+    def forward(self, img):
+        x = self.bn0(img)
+        x = self.conv_1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        x = self.conv2(x)
+        x = self.relu(x)
+        x = self.bn2(x)
+        x = x.view(x.size(0), -1)
+        return x
+
+
+class MultiViewResNet(nn.Module):
+    def __init__(self, params):
+        super(MultiViewResNet, self).__init__()
+        self.backbone1 = ResNetBackbone(params)
+        self.backbone2 = ResNetBackbone(params)
+
+        output_neurons = 7 if params.output_velocity else 1
+        
+        self.relu = nn.ReLU(inplace=True)
+        self.sigmoid = nn.Sigmoid()
+
+        self.fc1 = nn.Linear(16 * 7 * 7 * 2 + 6, 256)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, 64)
+        self.fc4 = nn.Linear(64, output_neurons)
+
+    def forward(self, img, forces):
+        # split the image tensor into the two images
+        channels_per_image = img.shape[1]//2
+        img_1 = img[:, :channels_per_image, :, :]
+        img_2 = img[:, channels_per_image:, :, :]
+
+        x1 = self.backbone1(img_1)
+        x2 = self.backbone2(img_2)
+        
+        x = torch.cat((x1, x2,forces), dim=1)
+
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        x = self.relu(x)
+        x = self.fc3(x)
+        x = self.relu(x)
+        x = self.fc4(x)
+        x = self.sigmoid(x)
+        return x
+
+    def load_partial_state_dict(self,pretrained_dict):
+        """This will only load weights for operations that exist in the model
+        and in the state_dict"""
+
+        state_dict = self.state_dict()
+        state_dict_b1 = self.backbone1.state_dict()
+        state_dict_b2 = self.backbone2.state_dict()
+
+        # 1. filter out unnecessary keys
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in state_dict}
+        pretrained_dict_b = {k: v for k, v in pretrained_dict.items() if k in state_dict_b1}
+        # 2. overwrite entries in the existing state dict
+        state_dict.update(pretrained_dict)
+        state_dict_b1.update(pretrained_dict_b)
+        state_dict_b2.update(pretrained_dict_b)
+        # 3. load the new state dict
+        self.load_state_dict(state_dict)
+        self.backbone1.load_state_dict(state_dict_b1)
+        self.backbone2.load_state_dict(state_dict_b2)
+
+
+if __name__ == "__main__":
+    net = MultiViewResNet()
+    # print(net)
+    state_dict = torch.load('resnet18-5c106cde.pth')
+    net.load_partial_state_dict(state_dict)
+
+    # net.eval()
+    # net.cuda()
+
+    # normalize = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
+
+    # n = 1
+    # t1 = time.time()
+    # for i in range(n):
+    #     img = torch.autograd.Variable(torch.rand(1,3,224,224)).float().cuda()
+    #     out = net(img)
+    #     out = out.data.cpu().numpy()
+    #     label = np.argmax(out)
+    #     print("Frame %i: %i" % (i,label))
+    # t2 = time.time()
+
+    # fps = n / (t2-t1)
+    # print("fps",fps)
+
+    # weight_sum = 0
+    # for name,parameter in net.named_parameters():
+    #     weights = np.prod(parameter.shape)
+    #     weight_sum += weights
+    #     print(name,weights)
+    # print("total weights",weight_sum)

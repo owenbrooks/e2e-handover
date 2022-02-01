@@ -47,10 +47,8 @@ class ResNet(nn.Module):
     def __init__(self, params, block = BasicBlock, layers = [2,2,2,2]):
         input_channels = 0
         channel_addition = [ 
-            (params.use_rgb_1, 3),
-            (params.use_rgb_2, 3),
-            (params.use_depth_1, 1),
-            (params.use_depth_2, 1),
+            (params.use_rgb_1 or params.use_rgb_2, 3),
+            (params.use_depth_1 or params.use_depth_2, 1),
         ]
         for used, channels in channel_addition:
             if used:
@@ -61,7 +59,7 @@ class ResNet(nn.Module):
         self.inplanes = 64
         super(ResNet, self).__init__()
         self.bn0 = nn.BatchNorm2d(input_channels)
-        self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=7, stride=2, padding=3,bias=False)
+        self.conv_1 = nn.Conv2d(input_channels, 64, kernel_size=7, stride=2, padding=3,bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.tanh = nn.Tanh()
@@ -73,6 +71,7 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.conv2 = nn.Conv2d(512, 16, kernel_size=1, stride=1)
         self.bn2 = nn.BatchNorm2d(16)
+
         self.fc1 = nn.Linear(16 * 7 * 7 * block.expansion + 6, 256)
         self.fc2 = nn.Linear(256, 128)
         self.fc3 = nn.Linear(128, 64)
@@ -103,7 +102,7 @@ class ResNet(nn.Module):
 
     def forward(self, img, forces):
         x = self.bn0(img)
-        x = self.conv1(x)
+        x = self.conv_1(x)
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
