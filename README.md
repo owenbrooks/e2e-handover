@@ -1,4 +1,4 @@
-# Deep Human-Robot Handover
+# 🦾 Deep Human-Robot Handover
 ## Force Thresholding Baseline Approach
 Robot activates or releases the gripper when it detects a sufficient force in the z-axis.
 
@@ -12,35 +12,39 @@ Data is stored in the `data` directory.
 
 Pressing 'r' begins or ends a recording session, identified by a timestamp. Images and a csv file for each session are stored in a folder. Pressing 'shift' toggles the gripper state manually.
 
-`roslaunch e2e_handover inference.launch`
+`roslaunch e2e_handover e2e_handover.launch`
 
 Optionally, record the raw ROS messages with `rosbag record rosout /camera/color/image_raw robotiq_ft_wrench Robotiq2FGripperRobotInput /Robotiq2FGripperRobotOutput`
 
 ## Training
-As the docker container doesn't have CUDA support, this should be done outside the container.
 
-`pip install wandb`
-
-`pip install torch`
-
-`python3 src/e2e_handover/train.py --session 2021-12-01-15:30:36`
+- Define the sensor suite to be used when training in `src/e2e_handover/train/params.yaml`
+- `python3 src/e2e_handover/train/train.py --data data/2022-01-25/2022-01-25-05\:27\:11/2022-01-25-05\:27\:11.csv`
 
 ## Inference
 
-`roslaunch e2e_handover inference.launch`
+`roslaunch e2e_handover e2e_handover.launch`
+
+Pressing 'i' starts or stops inference.
 
 # Hardware Setup
 - UR5 Robot
-- Intel Realsense 2 RGBD camera
+- 2x Intel Realsense 2 RGBD cameras
 - Robotiq 2F85 gripper
 - Robotiq FT300 force-torque sensor
+- 2x Contactile papillarray tactile sensors
 
 # Dependencies
 ## Using Docker
 
 - Install docker (using `sudo apt install docker.io`)
-- (optional) Install [nvidia-docker2](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#setting-up-nvidia-container-toolkit)
-- Run `./run_docker.sh`
+
+With cuda support:
+- Install [nvidia-docker2](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#setting-up-nvidia-container-toolkit)
+- Run `./docker/cuda_run.sh`
+
+Without cuda support:
+- Run `./docker/run_docker.sh`
 
 ## Building from source
 - [ROS Noetic](http://wiki.ros.org/noetic/Installation)
