@@ -12,6 +12,7 @@ import yaml
 
 class DeepHandoverDataset(Dataset):
     def __init__(self, params, transform=None):
+        self.sequence_length = params.sequence_length
         annotations_file = os.path.join(params.data_file) # path to csv file
         data_dir = os.path.dirname(annotations_file)
 
@@ -59,6 +60,41 @@ class DeepHandoverDataset(Dataset):
         return len(self.img_labels)
 
     def __getitem__(self, idx):
+        if self.params.use_lstm:
+            image_samples = []
+            force_samples = []
+            gripper_samples = []
+            if idx >= self.sequence_length - 1: # don't need to pad
+                # get previous sequence_length rows - 1 rows in addition
+                idx_start = idx - self.sequence_length + 1
+                idx_end = idx + 1
+                for i in range(idx_start, idx_end):
+                    sample = self.load_single_item(idx)
+                    image_samples.append(sample['image'])
+                    force_samples.append(sample['force'])
+                    gripper_samples.append(sample['gripper_is_open'])
+            else: # pad to sequence_length by repeating first item
+                first_sample = self.load_single_item(0)
+                samples_to_pad_by = self.sequence_length - idx - 1
+                for i in range(samples_to_pad_by):
+                    image_samples.append(first_sample['image'])
+                    force_samples.append(first_sample['force'])
+                    gripper_samples.append(first_sample['gripper_is_open'])
+                for i in range(0, idx + 1):
+                    sample = self.load_single_item(i)
+                    image_samples.append(sample['image'])
+                    force_samples.append(sample['force'])
+                    gripper_samples.append(sample['gripper_is_open'])
+            sequence_sample = {}
+            sequence_sample['image'] = torch.stack(image_samples)
+            sequence_sample['force'] = torch.stack(force_samples)
+            sequence_sample['gripper_is_open'] = torch.stack(gripper_samples)
+            return sequence_sample
+        else:
+            return self.load_single_item(idx)
+
+    def load_single_item(self, idx):
+
         use_images = {
             'image_rgb_1': self.params.use_rgb_1,
             'image_rgb_2': self.params.use_rgb_2,
@@ -70,7 +106,8 @@ class DeepHandoverDataset(Dataset):
         image_tensors = []
         for key in use_images.keys():
             if use_images[key]:
-                image_rel_path = self.img_labels[key][0]
+                # print(self.img_labels[key])
+                image_rel_path = self.img_labels[key][idx]
                 img_path = os.path.join(self.data_dir, image_rel_path)
                 image = Image.open(img_path).convert()
                 if self.main_transform is None:

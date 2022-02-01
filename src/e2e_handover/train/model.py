@@ -45,6 +45,7 @@ class BasicBlock(nn.Module):
 class ResNet(nn.Module):
 
     def __init__(self, params, block = BasicBlock, layers = [2,2,2,2]):
+        self.params = params
         input_channels = 0
         channel_addition = [ 
             (params.use_rgb_1 or params.use_rgb_2, 3),

@@ -10,7 +10,7 @@ import sys
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import random_split 
+from torch.utils.data import random_split
 import wandb
 import yaml
 
@@ -18,13 +18,17 @@ def main(params):
     print("Beginning training. Data: " + params.data_file)
     print(params)
     dataset = DeepHandoverDataset(params)
-    # random.shuffle(dataset.img_annotation_path_pairs)
 
     # Split between test and train
     train_fraction = 0.8
     train_length = int(len(dataset)*train_fraction)
     test_length = len(dataset) - train_length
-    train_data, test_data = random_split(dataset, [train_length, test_length], generator=torch.Generator().manual_seed(42))
+
+    if params.use_lstm: # Perform a time-series split, not random
+        train_data = torch.utils.data.Subset(dataset, range(0, train_length))
+        test_data = torch.utils.data.Subset(dataset, range(train_length, len(dataset)))
+    else:
+        train_data, test_data = random_split(dataset, [train_length, test_length], generator=torch.Generator().manual_seed(42))
 
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=params.batch_size, shuffle=True, num_workers=params.num_workers, pin_memory=True)
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, num_workers=params.num_workers, pin_memory=True)
@@ -68,6 +72,9 @@ def train(model, train_loader, test_loader, device, params):
             input_img = torch.Tensor(data['image']).to(device)
             input_forces = torch.Tensor(data['force']).to(device)
             target_gripstate = torch.Tensor(data['gripper_is_open']).to(device)
+
+            if params.use_lstm:
+                target_gripstate = target_gripstate[:, 4, :].unsqueeze(1) # extract final gripstate from sequence
 
             if params.output_velocity:
                 target_vel_cmd = torch.Tensor(data['vel_cmd']).to(device)

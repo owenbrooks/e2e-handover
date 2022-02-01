@@ -7,22 +7,40 @@ from e2e_handover.train.model import ResNet
 class ResNetBackbone(ResNet):
     """ Consists of ResNet up to but not including the fully connected layers """
     def forward(self, img):
-        x = self.bn0(img)
-        x = self.conv_1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
+        if self.params.use_lstm:
+            batch_size = img.shape[0]
+            seq_length = img.shape[1]
+            img = img.reshape([-1, img.shape[2], img.shape[3], img.shape[4]])
+            x = self.conv_1(img)
+            x = self.relu(x)
+            x = self.maxpool(x)
 
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+            x = self.layer1(x)
+            x = self.layer2(x)
+            x = self.layer3(x)
+            x = self.layer4(x)
 
-        x = self.conv2(x)
-        x = self.relu(x)
-        x = self.bn2(x)
-        x = x.view(x.size(0), -1)
-        return x
+            x = self.conv2(x)
+            x = self.relu(x)
+            x = x.view(batch_size, seq_length, -1)
+            return x
+        else:
+            x = self.bn0(img)
+            x = self.conv_1(x)
+            x = self.bn1(x)
+            x = self.relu(x)
+            x = self.maxpool(x)
+
+            x = self.layer1(x)
+            x = self.layer2(x)
+            x = self.layer3(x)
+            x = self.layer4(x)
+
+            x = self.conv2(x)
+            x = self.relu(x)
+            x = self.bn2(x)
+            x = x.view(x.size(0), -1)
+            return x
 
 
 class MultiViewResNet(nn.Module):
@@ -41,18 +59,21 @@ class MultiViewResNet(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.sigmoid = nn.Sigmoid()
 
+        number_of_images = 2 if self.params.use_rgb_1 and self.params.use_rgb_2 else 1
         if self.params.use_lstm:
-            self.lstm1 = nn.LSTM(input_size=16*7*7*2+6, hidden_size=256)
-            self.lstm2 = nn.LSTM(input_size=256, hidden_size=128)
+            self.lstm1 = nn.LSTM(input_size=16*7*7*number_of_images+6, hidden_size=256, batch_first=True)
+            self.lstm2 = nn.LSTM(input_size=256, hidden_size=128, batch_first=True)
             self.fc1 = nn.Linear(128, 64)
             self.fc2 = nn.Linear(64, output_neurons)
         else:
-            self.fc1 = nn.Linear(16*7*7*2+6, 256)
+            self.fc1 = nn.Linear(16*7*7*number_of_images+6, 256)
             self.fc2 = nn.Linear(256, 128)
             self.fc3 = nn.Linear(128, 64)
             self.fc4 = nn.Linear(64, output_neurons)
 
     def forward(self, img, forces):
+        concat_dimension = 2 if self.params.use_lstm else 1
+
         if self.params.use_rgb_1 and self.params.use_rgb_2:
             # split the image tensor into the two images
             channels_per_image = img.shape[1]//2
@@ -62,15 +83,15 @@ class MultiViewResNet(nn.Module):
             x1 = self.backbone1(img_1)
             x2 = self.backbone2(img_2)
             
-            x = torch.cat((x1, x2, forces), dim=1)
+            x = torch.cat((x1, x2, forces), dim=concat_dimension)
         else: # only one image
             x = self.backbone1(img)
-            x = torch.cat((x, forces), dim=1)
+            x = torch.cat((x, forces), dim=concat_dimension)
 
         if self.params.use_lstm:
-            x = self.lstm1(x)
+            x, _ = self.lstm1(x)
             x = self.relu(x)
-            x = self.lstm2(x)
+            x, _ = self.lstm2(x)
             x = self.relu(x)
             x = self.fc1(x)
             x = self.relu(x)
