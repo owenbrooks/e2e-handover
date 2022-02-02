@@ -76,9 +76,15 @@ class MultiViewResNet(nn.Module):
 
         if self.params.use_rgb_1 and self.params.use_rgb_2:
             # split the image tensor into the two images
-            channels_per_image = img.shape[1]//2
-            img_1 = img[:, :channels_per_image, :, :]
-            img_2 = img[:, channels_per_image:, :, :]
+            channel_dimension = 2 if self.params.use_lstm else 1
+            channels_per_image = img.shape[channel_dimension]//2
+
+            if self.params.use_lstm:
+                img_1 = img[:, :, :channels_per_image, :, :]
+                img_2 = img[:, :, channels_per_image:, :, :]
+            else:
+                img_1 = img[:, :channels_per_image, :, :]
+                img_2 = img[:, channels_per_image:, :, :]
 
             x1 = self.backbone1(img_1)
             x2 = self.backbone2(img_2)

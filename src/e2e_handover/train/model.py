@@ -54,6 +54,7 @@ class ResNet(nn.Module):
         for used, channels in channel_addition:
             if used:
                 input_channels += channels
+        print(input_channels)
 
         output_neurons = 7 if params.output_velocity else 1
 
@@ -102,6 +103,7 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, img, forces):
+        print(img.shape)
         x = self.bn0(img)
         x = self.conv_1(x)
         x = self.bn1(x)

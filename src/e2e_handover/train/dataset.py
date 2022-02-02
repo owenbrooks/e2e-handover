@@ -16,7 +16,7 @@ class DeepHandoverDataset(Dataset):
         annotations_file = os.path.join(params.data_file) # path to csv file
         data_dir = os.path.dirname(annotations_file)
 
-        self.img_labels = pd.read_csv(annotations_file, sep=' ')
+        self.img_labels = pd.read_csv(annotations_file, sep=' ').iloc[::params.frame_skip, :] # keeps only every nth frame
         self.data_dir = data_dir
         self.main_transform = transform
         self.transform_by_image_type = {}
@@ -106,8 +106,7 @@ class DeepHandoverDataset(Dataset):
         image_tensors = []
         for key in use_images.keys():
             if use_images[key]:
-                # print(self.img_labels[key])
-                image_rel_path = self.img_labels[key][idx]
+                image_rel_path = self.img_labels[key].iloc[idx]
                 img_path = os.path.join(self.data_dir, image_rel_path)
                 image = Image.open(img_path).convert()
                 if self.main_transform is None:
@@ -119,15 +118,15 @@ class DeepHandoverDataset(Dataset):
         stacked_image_t = torch.cat(image_tensors, 0) # concatenates into signal tensor with number of channels = sum of channels of each tensor
 
         force_tensor = torch.Tensor([
-            self.img_labels["fx"][idx],
-            self.img_labels["fy"][idx],
-            self.img_labels["fz"][idx],
-            self.img_labels["mx"][idx],
-            self.img_labels["my"][idx],
-            self.img_labels["mz"][idx]
+            self.img_labels["fx"].iloc[idx],
+            self.img_labels["fy"].iloc[idx],
+            self.img_labels["fz"].iloc[idx],
+            self.img_labels["mx"].iloc[idx],
+            self.img_labels["my"].iloc[idx],
+            self.img_labels["mz"].iloc[idx]
         ])
 
-        gripper_state_tensor = torch.Tensor([self.img_labels["gripper_is_open"][idx].item()])
+        gripper_state_tensor = torch.Tensor([self.img_labels["gripper_is_open"].iloc[idx].item()])
 
         sample = {}
         sample['image'] = stacked_image_t
@@ -136,12 +135,12 @@ class DeepHandoverDataset(Dataset):
 
         if self.params.output_velocity:
             vel_cmd_tensor = torch.Tensor([
-                self.img_labels["vx"][idx],
-                self.img_labels["vy"][idx],
-                self.img_labels["vz"][idx],
-                self.img_labels["wx"][idx],
-                self.img_labels["wy"][idx],
-                self.img_labels["wz"][idx],
+                self.img_labels["vx"].iloc[idx],
+                self.img_labels["vy"].iloc[idx],
+                self.img_labels["vz"].iloc[idx],
+                self.img_labels["wx"].iloc[idx],
+                self.img_labels["wy"].iloc[idx],
+                self.img_labels["wz"].iloc[idx],
             ])
             sample['vel_cmd'] = vel_cmd_tensor
 

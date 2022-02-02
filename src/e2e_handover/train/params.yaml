@@ -6,6 +6,7 @@ batch_size: 32
 learning_rate: 0.001
 num_workers: 4
 log_step: 10 # step size for printing log info
+frame_skip: 5 # will train only on every nth frame
 
 use_rgb_1: True
 use_rgb_2: False
@@ -14,7 +15,7 @@ use_depth_2: False
 use_tactile: False
 use_force_torque: True
 use_segmentation: False
-use_lstm: True
+use_lstm: False
 lstm_sequence_length: 5
 
 output_velocity: False
