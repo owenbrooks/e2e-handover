@@ -90,11 +90,11 @@ class MultiViewResNet(nn.Module):
 
         if self.params.use_lstm:
             x, _ = self.lstm1(x)
-            x = self.relu(x)
+            # x = self.relu(x)
             x, _ = self.lstm2(x)
-            x = self.relu(x)
+            # x = self.relu(x)
             x = self.fc1(x)
-            x = self.relu(x)
+            # x = self.relu(x)
             x = self.fc2(x)
             x = self.sigmoid(x)
         else:

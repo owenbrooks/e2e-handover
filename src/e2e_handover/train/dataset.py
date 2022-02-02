@@ -12,7 +12,7 @@ import yaml
 
 class DeepHandoverDataset(Dataset):
     def __init__(self, params, transform=None):
-        self.sequence_length = params.sequence_length
+        self.sequence_length = params.lstm_sequence_length
         annotations_file = os.path.join(params.data_file) # path to csv file
         data_dir = os.path.dirname(annotations_file)
 
