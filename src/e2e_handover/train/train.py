@@ -114,7 +114,6 @@ def train(model, train_loader, test_loader, device, params):
 
         torch.save(model.state_dict(), model_path)
 
-    # log_predictions(model, test_loader, device)
     print('Finished training')
 
 def build_param_string(params):
@@ -135,29 +134,6 @@ def build_param_string(params):
         param_string += "_force"
 
     return param_string
-
-def log_predictions(model, test_loader, device):
-    # create a Table with the same columns as above,
-    # plus confidence scores for all labels
-    columns=["id", "image", "guess", "truth"]
-    test_table = wandb.Table(columns=columns)
-
-    # run inference on every image, assuming my_model returns the
-    # predicted label, and the ground truth labels are available
-    model.eval()
-
-    with torch.no_grad:
-        for img_id, data in enumerate(test_loader):
-            img = torch.Tensor(data['image']).to(device)
-            forces = torch.Tensor(data['force']).to(device)
-            gripper_is_open = torch.Tensor(data['gripper_is_open']).to(device)[0][0]
-
-            guess_label = model(img, forces)[0][0]
-            test_table.add_data(img_id, wandb.Image(img), \
-                                guess_label, gripper_is_open)
-
-    wandb.log({"table_key": test_table})
-
 
 def test(model, test_loader, bce, mse, device, params):
     running_loss = 0.0
