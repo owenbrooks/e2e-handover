@@ -101,8 +101,6 @@ def train(model, train_loader, test_loader, device, params):
             if i % params.log_step == params.log_step-1:    # print every few mini-batches
                 print('Epoch %d. batch loss: %0.5f' %(epoch + 1, loss.data))
 
-        sys.exit()
-
         train_loss = running_loss / len(train_loader)
         test_loss, test_accuracy = test(model, test_loader, BCE, MSE, device, params)
 
