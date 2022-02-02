@@ -2,3 +2,5 @@
 Dockerfile
 cuda.dockerfile
 .dockerignore
+.dvc
+data

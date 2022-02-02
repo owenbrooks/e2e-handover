@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
     <node name="position" pkg="e2e_handover" type="position" output="screen" />
-    <node name="$(anon rviz)" pkg="rviz" type="rviz" respawn="false"
-        args="-d $(find e2e_handover)/launch/e2e_handover.rviz" />
+    <!-- <node name="$(anon rviz)" pkg="rviz" type="rviz" respawn="false"
+        args="-d $(find e2e_handover)/launch/e2e_handover.rviz" /> -->
 </launch>
