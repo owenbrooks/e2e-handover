@@ -2,6 +2,7 @@ import argparse
 import cv2
 from collections import namedtuple
 from e2e_handover.train import model
+from e2e_handover.train.dataset import DeepHandoverDataset
 from e2e_handover.image_ops import prepare_image
 from e2e_handover.segmentation import Segmentor
 import numpy as np
@@ -11,17 +12,19 @@ import sys
 import torch
 import yaml
 
-def main(annotations_path, model_name, should_segment, params):
-    data_dir = os.path.dirname(annotations_path)
-    df = pd.read_csv(annotations_path, sep=' ')
+def main(model_name, should_segment, params):
+    # Load dataset
+    dataset = DeepHandoverDataset(params)
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=None, shuffle=False, num_workers=params.num_workers, pin_memory=True)
 
     if should_segment:
         segmentor = Segmentor()
 
     font = cv2.FONT_HERSHEY_SIMPLEX
 
+    # Create network and load weights
     if not args.no_inference:
-        # Create network and load weights
+        print(params)
         net = model.ResNet(params)
         current_dirname = os.path.dirname(__file__)
         model_path = os.path.join(current_dirname, '../../../models', model_name)
@@ -33,10 +36,7 @@ def main(annotations_path, model_name, should_segment, params):
 
     index = 5000
     while True:
-        row = df.iloc[index]
-        image_rel_path = row['image_rgb_1']
-        image_path = os.path.join(data_dir, image_rel_path)
-        img = cv2.imread(image_path)
+        sample = data_loader[index]
 
         images = {}
         for key in ['image_rgb_1', 'image_rgb_2', 'image_depth_1', 'image_depth_2']:
