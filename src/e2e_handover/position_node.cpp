@@ -50,7 +50,7 @@ int main(int argc, char **argv)
 
     moveit::core::RobotStatePtr current_state = move_group_interface.getCurrentState();
     // base, shoulder, elbow, wrist1, wrist2, wrist3
-    std::vector<double> joint_group_positions = {deg2rad(0.), deg2rad(-50.), deg2rad(100.), deg2rad(-230.), deg2rad(-90.), deg2rad(0.)};
+    std::vector<double> joint_group_positions = {deg2rad(90.), deg2rad(-50.), deg2rad(100.), deg2rad(-230.), deg2rad(-90.), deg2rad(0.)};
     // Now, plan to the new joint space goal and visualize the plan.
     move_group_interface.setJointValueTarget(joint_group_positions);
 
