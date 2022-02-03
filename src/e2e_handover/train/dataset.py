@@ -97,10 +97,10 @@ class DeepHandoverDataset(Dataset):
 
         use_images = {
             'image_rgb_1': self.params.use_rgb_1,
-            'image_rgb_2': self.params.use_rgb_2,
             'image_depth_1': self.params.use_depth_1,
-            'image_depth_2': self.params.use_depth_2,
             'image_seg_1': self.params.use_segmentation,
+            'image_rgb_2': self.params.use_rgb_2,
+            'image_depth_2': self.params.use_depth_2,
             'image_seg_2': self.params.use_segmentation,
         }
         image_tensors = []

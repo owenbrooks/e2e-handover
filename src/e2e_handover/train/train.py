@@ -35,7 +35,7 @@ def main(params):
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, num_workers=params.num_workers, pin_memory=True)
 
     # Load pre-trained resnet18 model weights
-    model = ResNet(params)
+    model = MultiViewResNet(params)
     resnet18_url = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
     state_dict = torch.hub.load_state_dict_from_url(resnet18_url)
     model.load_partial_state_dict(state_dict)

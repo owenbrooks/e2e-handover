@@ -53,8 +53,8 @@ def main(model_name, should_segment, inference_params):
 
         images = {}
         images['image_rgb_1'] = sample['image'][0:3, :, :]
-        images['image_rgb_2'] = sample['image'][3:6, :, :]
-        images['image_depth_1'] = sample['image'][6:7, :, :]
+        images['image_depth_1'] = sample['image'][3:4, :, :]
+        images['image_rgb_2'] = sample['image'][4:7, :, :]
         images['image_depth_2'] = sample['image'][7:8, :, :]
 
         # Convert single-channels depth images to 3 channels
