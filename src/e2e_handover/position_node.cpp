@@ -25,8 +25,9 @@ int main(int argc, char **argv)
   static const std::string PLANNING_GROUP = "manipulator";
   moveit::planning_interface::MoveGroupInterface move_group_interface(PLANNING_GROUP);
   moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+  double max_waiting_time = 20.0; // seconds
   const moveit::core::JointModelGroup* joint_model_group =
-      move_group_interface.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
+      move_group_interface.getCurrentState(max_waiting_time)->getJointModelGroup(PLANNING_GROUP);
 
   // Visualization
   // ^^^^^^^^^^^^^

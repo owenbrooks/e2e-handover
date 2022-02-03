@@ -12,7 +12,7 @@ Data is stored in the `data` directory.
 
 Pressing 'r' begins or ends a recording session, identified by a timestamp. Images and a csv file for each session are stored in a folder. Pressing 'shift' toggles the gripper state manually.
 
-`roslaunch e2e_handover e2e_handover.launch`
+`roslaunch e2e_handover recording.launch`
 
 Optionally, record the raw ROS messages with `rosbag record rosout /camera/color/image_raw robotiq_ft_wrench Robotiq2FGripperRobotInput /Robotiq2FGripperRobotOutput`
 
@@ -23,7 +23,7 @@ Optionally, record the raw ROS messages with `rosbag record rosout /camera/color
 
 ## Inference
 
-`roslaunch e2e_handover e2e_handover.launch`
+`roslaunch e2e_handover inference.launch`
 
 Pressing 'i' starts or stops inference.
 
@@ -68,6 +68,11 @@ Install additional dependencies by running `rosdep install --from-paths src --ig
 # Miscellaneous commands for reference
 Bring up communication with the robot:
 `roslaunch ur_robot_driver ur5_bringup.launch robot_ip:=10.0.0.2`
+
+Move the robot into position:
+- `roslaunch e2e_handover position.launch`
+- `rviz -d launch/e2e_handover.rviz`
+- Click 'next' in RvizVisualTools
 
 Viewing the robot urdf:
 `roslaunch e2e_handover view_ur5_ft_grip_table.launch`

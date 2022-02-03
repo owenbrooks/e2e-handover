@@ -188,6 +188,8 @@ class Recorder():
             state_msg.data = self.is_recording
             self.recording_pub.publish(state_msg)
 
+            rospy.loginfo(f"Recording: {self.is_recording}")
+
             rate.sleep()
 
     

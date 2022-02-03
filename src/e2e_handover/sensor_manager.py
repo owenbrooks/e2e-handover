@@ -47,8 +47,8 @@ class SensorManager():
             self.tactile_1_sub = rospy.Subscriber('/hub_0/sensor_0', SensorState, self.tactile_1_callback)
             self.tactile_2_sub = rospy.Subscriber('/hub_0/sensor_1', SensorState, self.tactile_2_callback)
         
-            self.tactile_1_readings = [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
-            self.tactile_2_readings = [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
+            self.tactile_1_readings = None # [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
+            self.tactile_2_readings = None # [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
 
         self.cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images
 
@@ -58,18 +58,21 @@ class SensorManager():
         self.is_active = True
 
     def sensors_ready(self):
-        remaining_sensors = [
-            self.use_rgb_1 and self.img_rgb_1 is None,
-            self.use_rgb_2 and self.img_rgb_2 is None,
-            self.use_depth_1 and self.img_depth_1 is None,
-            self.use_depth_2 and self.img_depth_2 is None,
-            self.use_force and self.raw_wrench_reading is None,
-            self.use_tactile and (self.tactile_1_readings is None or self.tactile_2_readings is None),
+        have_received = [
+            ('rgb_1', self.use_rgb_1 and self.img_rgb_1 is None),
+            ('rgb_2', self.use_rgb_2 and self.img_rgb_2 is None),
+            ('depth_', self.use_depth_1 and self.img_depth_1 is None),
+            ('depth_2', self.use_depth_2 and self.img_depth_2 is None),
+            ('force', self.use_force and self.raw_wrench_reading is None),
+            ('tactile', self.use_tactile and (self.tactile_1_readings is None or self.tactile_2_readings is None)),
         ]
 
-        # rospy.logwarn(f"{remaining_sensors}")
+        remaining_sensor_names = [sensor[0] for sensor in have_received if sensor[1]]
+        all_ready = len(remaining_sensor_names) == 0
+        if not all_ready:
+            rospy.logwarn(f"Waiting for: {remaining_sensor_names}")
 
-        return not any(remaining_sensors)
+        return all_ready
 
     def deactivate(self):
         self.is_active = False

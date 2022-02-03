@@ -11,7 +11,7 @@ recording:
   use_segmentation: False
 
 inference:
-  model_file: 'models/2021-12-14-23_calib_best.pt' # relative to package.xml
+  model_file: 'models/2021-12-14-23_calib_best.pt_addtypotopreventerror' # relative to package.xml
   use_rgb_1: False
   use_rgb_2: False
   use_depth_1: False
