@@ -1,12 +1,14 @@
 import argparse
+from collections import namedtuple
 from datetime import datetime
+from e2e_handover.train import model
+from e2e_handover.train.dataset import DeepHandoverDataset
 import json
 import numpy as np
 import os
-from e2e_handover.train import model
-from e2e_handover.train.dataset import DeepHandoverDataset
 import torch
 from torch.utils.data import random_split 
+import yaml
 
 """ This file performs inference using a given model on a dataset and calculates
     statistics giving an idea of the model's accuracy. """
@@ -84,15 +86,25 @@ def main(session_id, model_name, test_fraction):
     print(json.dumps(stats, indent=4))
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser('Evaluate model on dataset')
+    parser.add_argument('--data', type=str, help='path of csv file to train on e.g. data/2021-12-09-04:56:05/raw.csv')
     parser.add_argument('--model-name', type=str, required=True, help='model file stored in top level models/ e.g. 2021-12-14-23.pt')
-    parser.add_argument('--session', type=str, required=True, help='session id stored in top level data/ e.g. 2021-12-14-23_calib_short')
-    parser.add_argument('--test-fraction', type=float, default=0.2)  
 
-    args = parser.parse_args()
+    current_dirname = os.path.dirname(__file__)
+    params_path = os.path.join(current_dirname, 'params.yaml')
+    with open(params_path, 'r') as stream:
+        try:
+            params = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+            sys.exit(1)
 
-    main(args.session, args.model_name, args.test_fraction)
+        args = parser.parse_args()
+        params['data_file'] = args.data
+
+        params = namedtuple("Params", params.keys())(*params.values())
+        main(params, args.model_name)
     # example:
-    # python3 evaluate_model.py --model-name 2021-12-14-23.pt --session 2021-12-14-23_calib_short --test-fraction 0.1
-    # model must be in models directory of main folder
-    # data must be in data/session_id directory of main folder e.g. data/2021-12-14-23/{*.csv, images/*.png}
+    # python3 evaluate_model.py --model-name 2021-12-14-23.pt --data data/2021-12-14-23/2021-12-14-23_calib_short.csv
+    # model must be in models directory specified in params.yaml

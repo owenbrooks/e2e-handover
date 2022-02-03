@@ -21,8 +21,7 @@ def main(params):
     dataset = DeepHandoverDataset(params)
 
     # Split between test and train
-    train_fraction = 0.01
-    train_length = int(len(dataset)*train_fraction)
+    train_length = int(len(dataset)*(1.0-params.test_fraction))
     test_length = len(dataset) - train_length
 
     if params.use_lstm: # Perform a time-series split, not random
