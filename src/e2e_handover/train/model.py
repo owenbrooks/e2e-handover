@@ -102,7 +102,6 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, img, forces):
-        print(img.shape)
         x = self.bn0(img)
         x = self.conv_1(x)
         x = self.bn1(x)
