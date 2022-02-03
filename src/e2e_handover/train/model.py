@@ -54,7 +54,6 @@ class ResNet(nn.Module):
         for used, channels in channel_addition:
             if used:
                 input_channels += channels
-        print(input_channels)
 
         output_neurons = 7 if params.output_velocity else 1
 

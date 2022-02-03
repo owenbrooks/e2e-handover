@@ -7,15 +7,29 @@ from e2e_handover.image_ops import prepare_image
 from e2e_handover.segmentation import Segmentor
 import numpy as np
 import os
-import pandas as pd
 import sys
 import torch
+from torchvision import transforms
 import yaml
 
-def main(model_name, should_segment, params):
+class NoneTransform(object):
+    def __call__(self, image):
+        return image
+
+def main(model_name, should_segment, inference_params):
+    print(inference_params)
+
+    # Convert to dict so we can edit it so that we can see all views
+    viewing_params = dict(inference_params._asdict())
+    viewing_params['use_rgb_1'] = True
+    viewing_params['use_rgb_2'] = True
+    viewing_params['use_depth_1'] = True
+    viewing_params['use_depth_2'] = True
+    viewing_params = namedtuple("Params", viewing_params.keys())(*viewing_params.values())
+
     # Load dataset
-    dataset = DeepHandoverDataset(params)
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size=None, shuffle=False, num_workers=params.num_workers, pin_memory=True)
+    viewing_dataset = DeepHandoverDataset(viewing_params, transform=transforms.ToTensor())
+    inference_dataset = DeepHandoverDataset(inference_params)
 
     if should_segment:
         segmentor = Segmentor()
@@ -24,45 +38,48 @@ def main(model_name, should_segment, params):
 
     # Create network and load weights
     if not args.no_inference:
-        print(params)
-        net = model.ResNet(params)
+        net = model.ResNet(inference_params)
         current_dirname = os.path.dirname(__file__)
-        model_path = os.path.join(current_dirname, '../../../models', model_name)
+        model_path = os.path.join(current_dirname, inference_params.model_directory, model_name)
         net.load_state_dict(torch.load(model_path))
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print("Using device: " + str(device))
         net.to(device)
         net.eval()
 
-    index = 5000
+    index = 0
     while True:
-        sample = data_loader[index]
+        sample = viewing_dataset[index]
 
         images = {}
-        for key in ['image_rgb_1', 'image_rgb_2', 'image_depth_1', 'image_depth_2']:
-            image_rel_path = row[key]
-            image_path = os.path.join(data_dir, image_rel_path)
-            images[key] = cv2.imread(image_path)
-        rgb_images = np.concatenate((images['image_rgb_1'], images['image_rgb_2']), axis=1)
-        depth_images = np.concatenate((images['image_depth_1'], images['image_depth_2']), axis=1)
+        images['image_rgb_1'] = sample['image'][0:3, :, :]
+        images['image_rgb_2'] = sample['image'][3:6, :, :]
+        images['image_depth_1'] = sample['image'][6:7, :, :]
+        images['image_depth_2'] = sample['image'][7:8, :, :]
 
-        img = np.concatenate((rgb_images, depth_images), axis=0)
+        # Convert single-channels depth images to 3 channels
+        images['image_depth_1'] = torch.cat([images['image_depth_1'], images['image_depth_1'], images['image_depth_1']])
+        images['image_depth_2'] = torch.cat([images['image_depth_2'], images['image_depth_2'], images['image_depth_2']])
+
+        rgb_images = np.concatenate((images['image_rgb_1'].numpy()[:, ::-1, :], images['image_rgb_2']), axis=2).transpose(1, 2, 0)
+        depth_images = np.concatenate((images['image_depth_1'].numpy()[:, ::-1, :], images['image_depth_2']), axis=2).transpose(1, 2, 0)
+        img = np.concatenate((rgb_images, depth_images), axis=0)[:, :, ::-1].copy()
 
         if should_segment:
             binary_mask = segmentor.person_binary_inference(img)
             img = np.array(binary_mask*255, dtype=np.uint8)
             # img = img[binary_mask]
         else:
-            image_number_string = str(index) + '/' + str(len(df.index))
+            image_number_string = str(index) + '/' + str(len(viewing_dataset))
             cv2.putText(img, image_number_string, (0, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
 
-            ground_truth_state = 'open' if row['gripper_is_open'] else 'closed'
+            ground_truth_state = 'open' if sample['gripper_is_open'] else 'closed'
             cv2.putText(img, ground_truth_state, (550, 420), font, 0.8, (255, 255, 255), 1, cv2.LINE_AA)
 
             if not args.no_inference:
-                img_t = prepare_image(img).unsqueeze_(0).to(device)
-                wrench_array = row[['fx', 'fy', 'fz', 'mx', 'my', 'mz']].values.astype(np.float32)
-                forces_t = torch.Tensor(wrench_array).unsqueeze_(0).to(device)
+                inference_sample = inference_dataset[index]
+                img_t = inference_sample['image'].unsqueeze(0).to(device)
+                forces_t = torch.Tensor(inference_sample['force'].unsqueeze(0)).to(device)
 
                 # forward + backward + optimize
                 output_t = net(img_t, forces_t)
@@ -80,13 +97,13 @@ def main(model_name, should_segment, params):
         if key == ord('q'):
             break
         elif key == ord('d'):
-            index = (index + 1) % len(df)
+            index = (index + 1) % len(viewing_dataset)
         elif key == ord('a'):
-            index = (index - 1) % len(df)
+            index = (index - 1) % len(viewing_dataset)
         elif key == ord('j'):
-            index = (index - 100) % len(df)
+            index = (index - 100) % len(viewing_dataset)
         elif key == ord('k'):
-            index = (index + 100) % len(df)
+            index = (index + 100) % len(viewing_dataset)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -108,4 +125,4 @@ if __name__ == "__main__":
         params['data_file'] = args.data
 
         params = namedtuple("Params", params.keys())(*params.values())
-        main(args.data, args.model, args.segment, params)
+        main(args.model, args.segment, params)
