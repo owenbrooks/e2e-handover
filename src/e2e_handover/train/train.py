@@ -21,7 +21,7 @@ def main(params):
     dataset = DeepHandoverDataset(params)
 
     # Split between test and train
-    train_fraction = 0.8
+    train_fraction = 0.01
     train_length = int(len(dataset)*train_fraction)
     test_length = len(dataset) - train_length
 
@@ -140,13 +140,16 @@ def test(model, test_loader, bce, mse, device, params):
     running_total = 0
 
     model.eval()
-    
+
     with torch.no_grad():
         for i, data in enumerate(test_loader, 0):
             # get the inputs
             input_img = torch.Tensor(data['image']).to(device)
             input_forces = torch.Tensor(data['force']).to(device)
             target_gripstate = torch.Tensor(data['gripper_is_open']).to(device)
+
+            if params.use_lstm:
+                target_gripstate = target_gripstate[:, 4, :].unsqueeze(1) # extract final gripstate from sequence
 
             if params.output_velocity:
                 target_vel_cmd = torch.Tensor(data['vel_cmd']).to(device)
