@@ -73,7 +73,14 @@ def main(data_file):
         
         key = cv2.waitKey(0) & 0xFF
         if key == ord('q'):
-            save_annotations(annotations, data_file)
+            cv2.destroyAllWindows()
+            print("Would you like to save annotations? (y/n)")
+            x = input()
+            if x.lower()[0] == 'y':
+                save_annotations(annotations, data_file)
+                print('Saved')
+            else:
+                print('Did not save')
             break
         elif key == ord('d'): # go to next frame
             index = (index + 1) % len(viewing_dataset)
@@ -104,8 +111,19 @@ def main(data_file):
         elif key == ord('m'): # write annotations to disk
             save_annotations(annotations, data_file)
 
+def apply(data_file):
+    data_dir = os.path.dirname(data_file)
+    new_filename = os.path.join(data_dir, 'direction.csv')
+    out_df = pd.read_csv(data_file, sep=' ')
+    out_df.to_csv(new_filename, sep=' ', index=False)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', type=str, help='path of csv file to run on e.g. data/2021-12-09-04:56:05/raw.csv')
+    parser.add_argument('--apply', action='store_true')
     args = parser.parse_args()
-    main(args.data)
+
+    if args.apply:
+        apply(args.data)
+    else:
+        main(args.data)
