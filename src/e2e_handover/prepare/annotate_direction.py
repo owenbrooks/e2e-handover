@@ -1,4 +1,5 @@
 
+from __future__ import annotations
 import argparse
 import cv2
 from collections import namedtuple
@@ -25,7 +26,15 @@ def find_transition_indices(data_file):
     indices = np.argwhere(np.diff(df['gripper_is_open'])).squeeze(1)
     return indices
 
-def save_annotations(annotations, data_file):
+def save_annotations(annotations, data_file, dataset_length):
+    starting_transition = 0 if annotations[0][1] == 1 else 1
+    start = (0, starting_transition)
+    ending_transition = 0 if annotations[-1][1] == 1 else 1
+    end = (dataset_length-1, ending_transition)
+    
+    annotations.append(start)
+    annotations.append(end)
+
     data_dir = os.path.dirname(data_file)
     new_filename = os.path.join(data_dir, 'direction.csv')
     out_df = pd.DataFrame(annotations, columns=['index', 'transition_val', 'transition_str'])
@@ -52,7 +61,7 @@ def main(data_file):
 
     transition_indices = find_transition_indices(params.data_file)
 
-    annotation_mode = HandoverSwitch.GivingToReceiving
+    annotation_mode = HandoverSwitch.ReceivingToGiving
     annotations = []
     
     index = 0
@@ -72,24 +81,24 @@ def main(data_file):
         cv2.imshow('Annotator', img)
         
         key = cv2.waitKey(0) & 0xFF
-        if key == ord('q'):
-            cv2.destroyAllWindows()
-            print("Would you like to save annotations? (y/n)")
-            x = input()
-            if x.lower()[0] == 'y':
-                save_annotations(annotations, data_file)
-                print('Saved')
-            else:
-                print('Did not save')
-            break
-        elif key == ord('d'): # go to next frame
+        # if key == ord('q'):
+        #     cv2.destroyAllWindows()
+        #     print("Would you like to save annotations? (y/n)")
+        #     x = input()
+        #     if x.lower()[0] == 'y':
+        #         save_annotations(annotations, data_file, len(viewing_dataset))
+        #         print('Saved')
+        #     else:
+        #         print('Did not save')
+        #     break
+        if key == ord('d'): # go to next frame
             index = (index + 1) % len(viewing_dataset)
         elif key == ord('a'): # go to prev frame
             index = (index - 1) % len(viewing_dataset)
         elif key == ord('j'): # skip ahead a few frames
-            index = (index - 50) % len(viewing_dataset)
+            index = (index - 25) % len(viewing_dataset)
         elif key == ord('k'): # go back a few frames
-            index = (index + 50) % len(viewing_dataset)
+            index = (index + 25) % len(viewing_dataset)
         elif key == ord('l'): # skip ahead to next transition
             later_transitions = transition_indices[transition_indices > index]
             index = later_transitions.min() if len(later_transitions) > 0 else transition_indices[0]
@@ -102,20 +111,59 @@ def main(data_file):
             else:
                 annotation_mode = HandoverSwitch.GivingToReceiving
         elif key == 32: # spacebar to add annotation
+            annotations.append((index, int(annotation_mode), str(annotation_mode)))
             if annotation_mode == HandoverSwitch.GivingToReceiving:
                 annotation_mode = HandoverSwitch.ReceivingToGiving
             else:
                 annotation_mode = HandoverSwitch.GivingToReceiving
-            annotations.append((index, int(annotation_mode), annotation_mode))
             print(index, int(annotation_mode), annotation_mode)
         elif key == ord('m'): # write annotations to disk
-            save_annotations(annotations, data_file)
+            save_annotations(annotations, data_file, len(viewing_dataset))
 
 def apply(data_file):
-    data_dir = os.path.dirname(data_file)
-    new_filename = os.path.join(data_dir, 'direction.csv')
-    out_df = pd.read_csv(data_file, sep=' ')
-    out_df.to_csv(new_filename, sep=' ', index=False)
+    orig_data = pd.read_csv(data_file, sep=' ')
+    annotations_path = os.path.join(os.path.dirname(data_file), 'direction.csv')
+    annotations = pd.read_csv(annotations_path, sep=' ')
+
+    annotations = annotations.sort_values('index')
+    annotations.reset_index(drop=True, inplace=True)
+
+    indices = annotations['index']
+    transitions = annotations['transition_val']
+
+    no_double_transitions = np.all(np.diff(transitions).astype(bool))
+
+    if not no_double_transitions:
+        raise ValueError(f"Please check the transitions")
+
+    # for transition in transitions:
+    #     print(transition)
+    receiving_slices = np.zeros(len(orig_data), dtype=np.bool)
+    giving_slices = np.zeros(len(orig_data), dtype=np.bool)
+
+    for i in range(len(annotations)-1):
+        start_index = annotations['index'].iloc[i]
+        end_index = annotations['index'].iloc[i+1]
+        if annotations['transition_val'].iloc[i] == 1: # receiving->giving
+            giving_slices[start_index:end_index] = True
+        else:
+            receiving_slices[start_index:end_index] = True
+        print(f'{start_index} {end_index}')
+
+    print(np.sum(receiving_slices))
+    print(np.sum(giving_slices))
+
+    receiving_data = orig_data[receiving_slices]
+    giving_data = orig_data[giving_slices]
+
+    receiving_file = os.path.join(os.path.dirname(data_file), 'receiving.csv')
+    giving_file = os.path.join(os.path.dirname(data_file), 'giving.csv')
+
+    receiving_data.to_csv(receiving_file, sep=' ', index=False)
+    giving_data.to_csv(giving_file, sep=' ', index=False)
+
+    # print(transitions.values)
+    # out_df.to_csv(new_filename, sep=' ', index=False)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
