@@ -4,7 +4,7 @@ from collections import namedtuple
 from e2e_handover.train import model
 from e2e_handover.train.dataset import DeepHandoverDataset
 from e2e_handover.image_ops import prepare_image
-from e2e_handover.segmentation import Segmentor
+# from e2e_handover.segmentation import Segmentor
 import numpy as np
 import os
 import sys
