@@ -81,16 +81,16 @@ def main(data_file):
         cv2.imshow('Annotator', img)
         
         key = cv2.waitKey(0) & 0xFF
-        # if key == ord('q'):
-        #     cv2.destroyAllWindows()
-        #     print("Would you like to save annotations? (y/n)")
-        #     x = input()
-        #     if x.lower()[0] == 'y':
-        #         save_annotations(annotations, data_file, len(viewing_dataset))
-        #         print('Saved')
-        #     else:
-        #         print('Did not save')
-        #     break
+        if key == ord('q'):
+            cv2.destroyAllWindows()
+            print("Would you like to save annotations? (y/n)")
+            x = input()
+            if x.lower()[0] == 'y':
+                save_annotations(annotations, data_file, len(viewing_dataset))
+                print('Saved')
+            else:
+                print('Did not save')
+            break
         if key == ord('d'): # go to next frame
             index = (index + 1) % len(viewing_dataset)
         elif key == ord('a'): # go to prev frame
@@ -128,7 +128,6 @@ def apply(data_file):
     annotations = annotations.sort_values('index')
     annotations.reset_index(drop=True, inplace=True)
 
-    indices = annotations['index']
     transitions = annotations['transition_val']
 
     no_double_transitions = np.all(np.diff(transitions).astype(bool))
@@ -136,8 +135,6 @@ def apply(data_file):
     if not no_double_transitions:
         raise ValueError(f"Please check the transitions")
 
-    # for transition in transitions:
-    #     print(transition)
     receiving_slices = np.zeros(len(orig_data), dtype=np.bool)
     giving_slices = np.zeros(len(orig_data), dtype=np.bool)
 
@@ -150,9 +147,6 @@ def apply(data_file):
             receiving_slices[start_index:end_index] = True
         print(f'{start_index} {end_index}')
 
-    print(np.sum(receiving_slices))
-    print(np.sum(giving_slices))
-
     receiving_data = orig_data[receiving_slices]
     giving_data = orig_data[giving_slices]
 
@@ -162,13 +156,11 @@ def apply(data_file):
     receiving_data.to_csv(receiving_file, sep=' ', index=False)
     giving_data.to_csv(giving_file, sep=' ', index=False)
 
-    # print(transitions.values)
-    # out_df.to_csv(new_filename, sep=' ', index=False)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', type=str, help='path of csv file to run on e.g. data/2021-12-09-04:56:05/raw.csv')
-    parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--apply', action='store_true', help='separate the data into giving and receiving CSVs based on direction.csv')
     args = parser.parse_args()
 
     if args.apply:
