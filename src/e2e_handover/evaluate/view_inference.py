@@ -25,6 +25,7 @@ def main(model_path, should_segment, inference_params):
     viewing_params['use_rgb_2'] = True
     viewing_params['use_depth_1'] = True
     viewing_params['use_depth_2'] = True
+    viewing_params['use_lstm'] = False
     viewing_params = namedtuple("Params", viewing_params.keys())(*viewing_params.values())
 
     # Load dataset
@@ -84,8 +85,9 @@ def main(model_path, should_segment, inference_params):
                 output_t = net(img_t, forces_t)
 
                 model_output = output_t.cpu().detach().numpy()[0][0]
+                if inference_params.use_lstm:
+                    model_output = model_output[0]
                 model_open = model_output > 0.5
-
                 cv2.putText(img, f"{model_output:.6f}", (500, 50), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
                 model_state = 'open' if model_open else 'closed'
                 cv2.putText(img, model_state, (550, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
