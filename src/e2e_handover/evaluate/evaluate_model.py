@@ -1,8 +1,8 @@
 import argparse
 from collections import namedtuple
 from datetime import datetime
-from e2e_handover.train import model
 from e2e_handover.train.dataset import DeepHandoverDataset
+from e2e_handover.train.model import MultiViewResNet
 import json
 import numpy as np
 import os
@@ -15,7 +15,7 @@ import yaml
 
 def main(session_id, model_name, test_fraction):
     # Create network and load weights
-    net = model.ResNet()
+    net = MultiViewResNet()
     current_dirname = os.path.dirname(__file__)
     model_path = os.path.join(current_dirname, '../../../models', model_name)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

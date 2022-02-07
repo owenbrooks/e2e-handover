@@ -1,7 +1,7 @@
 import argparse
 import cv2
 from collections import namedtuple
-from e2e_handover.train import model
+from e2e_handover.train.model_double import MultiViewResNet
 from e2e_handover.train.dataset import DeepHandoverDataset
 from e2e_handover.image_ops import prepare_image
 # from e2e_handover.segmentation import Segmentor
@@ -16,7 +16,7 @@ class NoneTransform(object):
     def __call__(self, image):
         return image
 
-def main(model_name, should_segment, inference_params):
+def main(model_path, should_segment, inference_params):
     print(inference_params)
 
     # Convert to dict so we can edit it so that we can see all views
@@ -38,9 +38,8 @@ def main(model_name, should_segment, inference_params):
 
     # Create network and load weights
     if not args.no_inference:
-        net = model.ResNet(inference_params)
-        current_dirname = os.path.dirname(__file__)
-        model_path = os.path.join(current_dirname, inference_params.model_directory, model_name)
+        net = MultiViewResNet(inference_params)
+        print(model_path)
         net.load_state_dict(torch.load(model_path))
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print("Using device: " + str(device))
@@ -101,9 +100,9 @@ def main(model_name, should_segment, inference_params):
         elif key == ord('a'):
             index = (index - 1) % len(viewing_dataset)
         elif key == ord('j'):
-            index = (index - 100) % len(viewing_dataset)
+            index = (index - 25) % len(viewing_dataset)
         elif key == ord('k'):
-            index = (index + 100) % len(viewing_dataset)
+            index = (index + 25) % len(viewing_dataset)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

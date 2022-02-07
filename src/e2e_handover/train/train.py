@@ -7,6 +7,7 @@ from e2e_handover.train.model_double import MultiViewResNet
 from e2e_handover.train.model import ResNet
 import numpy as np
 import os
+import shutil
 import sys
 import torch
 import torch.nn as nn
@@ -46,21 +47,29 @@ def main(params):
 
     train(model, train_loader, test_loader, device, params)
 
+def save_checkpoint(model, model_dir, model_name, epoch, is_best):
+    model_path = os.path.join(model_dir, model_name, model_name + f'_{epoch}.pt')
+    torch.save(model.state_dict(), model_path)
+
+    if is_best:
+        checkpoint_path = os.path.join(model_dir, model_name, model_name + f'_best.pt')
+        shutil.copyfile(model_path, checkpoint_path)
+
 def train(model, train_loader, test_loader, device, params):
     model.train()
 
     # Create directory and path for saving model
     current_dirname = os.path.dirname(__file__)
     model_dir = os.path.join(current_dirname, params.model_directory)
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
     timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
-
     param_string = build_param_string(params)
-    model_path = os.path.join(model_dir, f'model_{timestamp}{param_string}.pt')
+    model_name = f'model_{timestamp}{param_string}'
+    os.makedirs(os.path.join(model_dir, model_name))
 
     BCE = nn.BCELoss()
     MSE = nn.MSELoss()
+
+    best_acc = 0.0
 
     # Training loop
     optimizer = optim.SGD(model.parameters(), lr=params.learning_rate, momentum=0.9)
@@ -110,7 +119,9 @@ def train(model, train_loader, test_loader, device, params):
 
         print("Train loss: %0.5f, test loss: %0.5f" % (train_loss, test_loss))
 
-        torch.save(model.state_dict(), model_path)
+        is_best = test_accuracy > best_acc
+        best_acc = max(test_accuracy, best_acc)
+        save_checkpoint(model, model_dir, model_name, epoch, is_best)
 
     print('Finished training')
 
