@@ -86,7 +86,7 @@ def main(model_path, should_segment, inference_params):
                 model_output = output_t.cpu().detach().numpy()[0][0]
                 model_open = model_output > 0.5
 
-                cv2.putText(img, str(model_output), (500, 50), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
+                cv2.putText(img, f"{model_output:.6f}", (500, 50), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
                 model_state = 'open' if model_open else 'closed'
                 cv2.putText(img, model_state, (550, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
 

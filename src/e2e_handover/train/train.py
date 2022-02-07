@@ -63,7 +63,8 @@ def train(model, train_loader, test_loader, device, params):
     model_dir = os.path.join(current_dirname, params.model_directory)
     timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
     param_string = build_param_string(params)
-    model_name = f'model_{timestamp}{param_string}'
+    action = 'giving' if 'giving' in params.data_file else 'receiving'
+    model_name = f'model_{timestamp}_{action}{param_string}'
     os.makedirs(os.path.join(model_dir, model_name))
 
     BCE = nn.BCELoss()
@@ -141,6 +142,8 @@ def build_param_string(params):
         param_string += "_tact"
     if params.use_force_torque:
         param_string += "_force"
+    if params.use_lstm:
+        param_string += f"_lstm{params.lstm_sequence_length}"
 
     return param_string
 
