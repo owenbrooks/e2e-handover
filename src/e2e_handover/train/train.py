@@ -143,6 +143,9 @@ def build_param_string(params):
     if params.use_lstm:
         param_string += f"_lstm{params.lstm_sequence_length}"
 
+    if wandb.run.name is not None:
+        param_string += f"_{wandb.run.name}"
+
     data_filename = os.path.splitext(os.path.split(params.data_file)[-1])[-2]
     param_string += f"_{data_filename}"
 
