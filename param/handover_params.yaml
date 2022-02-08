@@ -11,11 +11,13 @@ recording:
   use_segmentation: False
 
 inference:
-  model_file: 'models/2021-12-14-23_calib_best.pt_addtypotopreventerror' # relative to package.xml
-  use_rgb_1: False
+  model_file: 'models/model_2022-02-08-04:24:25_receiving_rgb1_force/model_2022-02-08-04:24:25_receiving_rgb1_force_best.pt' # relative to package.xml
+  use_rgb_1: True
   use_rgb_2: False
   use_depth_1: False
   use_depth_2: False
-  use_force: False
+  use_force: True
   use_tactile: False
+  use_lstm: False
   use_segmentation: False
+  output_velocity: False

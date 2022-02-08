@@ -1,7 +1,8 @@
 #!/usr/bin/env python
+from collections import namedtuple
 from e2e_handover.gripper import ObjDetection, obj_msg_to_enum, open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
 from e2e_handover.image_ops import prepare_image
-from e2e_handover.train import model
+from e2e_handover.train.model_double import MultiViewResNet
 from enum import Enum
 from numpy.core.numeric import NaN
 import os
@@ -53,12 +54,13 @@ class HandoverNode():
 
         # Create network and load weights
         model_file = inference_params['model_file']
+        params = namedtuple("Params", inference_params.keys())(*inference_params.values())
         rospack = rospkg.RosPack()
         package_dir = rospack.get_path('e2e_handover')
         model_path = os.path.join(package_dir, model_file)
         rospy.loginfo(f"Using model: {model_path}")
         if os.path.isfile(model_path):
-            self.net = model.ResNet()
+            self.net = MultiViewResNet(params)
             self.net.load_state_dict(torch.load(model_path))
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             rospy.loginfo("Using device: " + str(self.device))
@@ -75,13 +77,12 @@ class HandoverNode():
 
     def spin_inference(self):
         if self.is_inference_active and self.sensor_manager.sensors_ready() and self.net is not None:
-            # img_rgb_1 = self.sensor_manager.img_rgb_1[:, :, ::-1]
-            # img_rgb_1_t = prepare_image(img_rgb_1).unsqueeze_(0).to(self.device)
-            # forces_t = torch.autograd.Variable(torch.FloatTensor(self.calib_wrench_array)).unsqueeze_(0).to(self.device)
+            img_rgb_1 = self.sensor_manager.img_rgb_1[:, :, ::-1]
+            img_rgb_1_t = prepare_image(img_rgb_1).unsqueeze_(0).to(self.device)
+            forces_t = torch.autograd.Variable(torch.FloatTensor(self.sensor_manager.calib_wrench_array)).unsqueeze_(0).to(self.device)
 
-            # output_t = self.net(img_rgb_1_t, forces_t)
-            # self.model_output = output_t.cpu().detach().numpy()[0][0]
-            pass
+            output_t = self.net(img_rgb_1_t, forces_t)
+            self.model_output = output_t.cpu().detach().numpy()[0][0]
 
     def gripper_state_callback(self, gripper_input_msg):
         self.obj_det_state = obj_msg_to_enum[gripper_input_msg.gOBJ]
@@ -92,12 +93,17 @@ class HandoverNode():
     def joy_callback(self, joy_msg):
         down_pressed = joy_msg.axes[7] == -1
         x_pressed = joy_msg.buttons[0] == 1
+        option_pressed = joy_msg.buttons[9] == 1
+
+        if option_pressed:
+            self.toggle_inference()
 
         if down_pressed or x_pressed:
             self.toggle_gripper()
 
     def toggle_inference(self):
         self.is_inference_active = not self.is_inference_active
+        self.model_output = NaN
 
         if self.is_inference_active:
             self.sensor_manager.activate()
@@ -146,9 +152,9 @@ class HandoverNode():
         rospy.loginfo("Running inference node")
         rate = rospy.Rate(10)
 
-        # while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-        #     rospy.loginfo("Waiting for gripper to connect")
-        #     rate.sleep()
+        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+            rospy.loginfo("Waiting for gripper to connect")
+            rate.sleep()
 
         # initialise the gripper via reset and activate messages
         grip_cmd = reset_gripper_msg()
