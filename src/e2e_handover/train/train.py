@@ -4,7 +4,6 @@ from collections import namedtuple
 from datetime import datetime
 from e2e_handover.train.dataset import DeepHandoverDataset
 from e2e_handover.train.model_double import MultiViewResNet
-from e2e_handover.train.model import ResNet
 import numpy as np
 import os
 import shutil
@@ -22,17 +21,17 @@ def main(params):
     dataset = DeepHandoverDataset(params)
 
     # Split between test and train
-    train_length = int(len(dataset)*(1.0-params.test_fraction))
-    test_length = len(dataset) - train_length
+    train_length = int(len(dataset)*(1.0-params.val_fraction))
+    val_length = len(dataset) - train_length
 
     if params.use_lstm: # Perform a time-series split, not random
         train_data = torch.utils.data.Subset(dataset, range(0, train_length))
-        test_data = torch.utils.data.Subset(dataset, range(train_length, len(dataset)))
+        val_data = torch.utils.data.Subset(dataset, range(train_length, len(dataset)))
     else:
-        train_data, test_data = random_split(dataset, [train_length, test_length], generator=torch.Generator().manual_seed(42))
+        train_data, val_data = random_split(dataset, [train_length, val_length], generator=torch.Generator().manual_seed(42))
 
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=params.batch_size, shuffle=True, num_workers=params.num_workers, pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, num_workers=params.num_workers, pin_memory=True)
+    val_loader = torch.utils.data.DataLoader(val_data, batch_size=1, shuffle=True, num_workers=params.num_workers, pin_memory=True)
 
     # Load pre-trained resnet18 model weights
     model = MultiViewResNet(params)
@@ -45,7 +44,7 @@ def main(params):
     print("Using device: " + str(device))
     model.to(device)
 
-    train(model, train_loader, test_loader, device, params)
+    train(model, train_loader, val_loader, device, params)
 
 def save_checkpoint(model, model_dir, model_name, epoch, is_best):
     model_path = os.path.join(model_dir, model_name, model_name + f'_{epoch}.pt')
@@ -111,16 +110,16 @@ def train(model, train_loader, test_loader, device, params):
                 print('Epoch %d. batch loss: %0.5f' %(epoch + 1, loss.data))
 
         train_loss = running_loss / len(train_loader)
-        test_loss, test_accuracy = test(model, test_loader, BCE, MSE, device, params)
+        val_loss, val_accuracy = validate(model, test_loader, BCE, MSE, device, params)
 
         # Log loss in weights and biases
-        wandb.log({"train_loss": train_loss, "test_loss": test_loss, 'test_acc': test_accuracy})
+        wandb.log({"train_loss": train_loss, "val_loss": val_loss, 'val_acc': val_accuracy})
         wandb.watch(model)
 
-        print("Train loss: %0.5f, test loss: %0.5f" % (train_loss, test_loss))
+        print("Train loss: %0.5f, test loss: %0.5f" % (train_loss, val_loss))
 
-        is_best = test_accuracy > best_acc
-        best_acc = max(test_accuracy, best_acc)
+        is_best = val_accuracy > best_acc
+        best_acc = max(val_accuracy, best_acc)
         save_checkpoint(model, model_dir, model_name, epoch, is_best)
 
     print('Finished training')
@@ -149,7 +148,7 @@ def build_param_string(params):
 
     return param_string
 
-def test(model, test_loader, bce, mse, device, params):
+def validate(model, val_loader, bce, mse, device, params):
     running_loss = 0.0
     running_correct = 0
     running_total = 0
@@ -157,7 +156,7 @@ def test(model, test_loader, bce, mse, device, params):
     model.eval()
 
     with torch.no_grad():
-        for i, data in enumerate(test_loader, 0):
+        for i, data in enumerate(val_loader, 0):
             # get the inputs
             input_img = torch.Tensor(data['image']).to(device)
             input_forces = torch.Tensor(data['force']).to(device)
@@ -191,10 +190,10 @@ def test(model, test_loader, bce, mse, device, params):
             # print statistics
             running_loss += float(loss.data)
 
-    test_loss = running_loss / len(test_loader)
-    test_accuracy = running_correct / float(running_total)
+    val_loss = running_loss / len(val_loader)
+    val_accuracy = running_correct / float(running_total)
 
-    return test_loss, test_accuracy
+    return val_loss, val_accuracy
 
 
 if __name__ == "__main__":
