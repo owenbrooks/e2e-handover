@@ -42,7 +42,9 @@ def main(data_file, window):
 
     print(f"Reduced number of frames from {len(orig_data)} to {len(cropped_data)}.")
 
-    cropped_file = os.path.join(os.path.dirname(data_file), 'cropped.csv')
+    orig_filename = os.path.splitext(os.path.split(data_file)[-1])[-2]
+
+    cropped_file = os.path.join(os.path.dirname(data_file), f'{orig_filename}_cropped{window}.csv')
     cropped_data.to_csv(cropped_file, sep=' ', index=False)
 
 
