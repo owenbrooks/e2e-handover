@@ -63,8 +63,7 @@ def train(model, train_loader, test_loader, device, params):
     model_dir = os.path.join(current_dirname, params.model_directory)
     timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
     param_string = build_param_string(params)
-    action = 'giving' if 'giving' in params.data_file else 'receiving'
-    model_name = f'model_{timestamp}_{action}{param_string}'
+    model_name = f'model_{timestamp}{param_string}'
     os.makedirs(os.path.join(model_dir, model_name))
 
     BCE = nn.BCELoss()
@@ -144,6 +143,9 @@ def build_param_string(params):
         param_string += "_force"
     if params.use_lstm:
         param_string += f"_lstm{params.lstm_sequence_length}"
+
+    data_filename = os.path.splitext(os.path.split(params.data_file)[-1])[-2]
+    param_string += f"_{data_filename}"
 
     return param_string
 
