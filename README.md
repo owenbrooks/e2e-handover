@@ -16,6 +16,12 @@ Pressing 'r' begins or ends a recording session, identified by a timestamp. Imag
 
 Optionally, record the raw ROS messages with `rosbag record rosout /camera/color/image_raw robotiq_ft_wrench Robotiq2FGripperRobotInput /Robotiq2FGripperRobotOutput`
 
+## Data preparation
+`python3 src/e2e_handover/prepare/calibrate_forces.py --data`
+`python3 src/e2e_handover/prepare/annotate_direction.py --data`
+`python3 src/e2e_handover/prepare/annotate_direction.py --data --apply`
+`python3 src/e2e_handover/prepare/use_future.py --data data/2022-02-08-03\:41\:24_owen/2022-02-08-03\:41\:24_calib_receive.csv --offset 5`
+
 ## Training
 
 - Define the sensor suite to be used when training in `src/e2e_handover/train/params.yaml`

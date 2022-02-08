@@ -41,8 +41,8 @@ def save_annotations(annotations, data_file, dataset_length):
 def main(data_file):
     params =  {
         'data_file': data_file,
-        'use_rgb_1': False,
-        'use_rgb_2': True,
+        'use_rgb_1': True,
+        'use_rgb_2': False,
         'use_depth_1': False,
         'use_depth_2': False,
         'use_segmentation': False,
@@ -110,11 +110,11 @@ def main(data_file):
                 annotation_mode = HandoverSwitch.GivingToReceiving
         elif key == 32: # spacebar to add annotation
             annotations.append((index, int(annotation_mode), str(annotation_mode)))
+            print(index, int(annotation_mode), annotation_mode)
             if annotation_mode == HandoverSwitch.GivingToReceiving:
                 annotation_mode = HandoverSwitch.ReceivingToGiving
             else:
                 annotation_mode = HandoverSwitch.GivingToReceiving
-            print(index, int(annotation_mode), annotation_mode)
         elif key == ord('m'): # write annotations to disk
             save_annotations(annotations, data_file, len(viewing_dataset))
 
@@ -148,8 +148,9 @@ def apply(data_file):
     receiving_data = orig_data[receiving_slices]
     giving_data = orig_data[giving_slices]
 
-    receiving_file = os.path.join(os.path.dirname(data_file), 'receiving.csv')
-    giving_file = os.path.join(os.path.dirname(data_file), 'giving.csv')
+    orig_filename = os.path.splitext(os.path.split(data_file)[-1])[-2]
+    receiving_file = os.path.join(os.path.dirname(data_file), f'{orig_filename}_receive.csv')
+    giving_file = os.path.join(os.path.dirname(data_file), f'{orig_filename}_give.csv')
 
     receiving_data.to_csv(receiving_file, sep=' ', index=False)
     giving_data.to_csv(giving_file, sep=' ', index=False)

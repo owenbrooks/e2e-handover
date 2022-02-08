@@ -61,8 +61,9 @@ def main(model_path, should_segment, inference_params):
         images['image_depth_1'] = torch.cat([images['image_depth_1'], images['image_depth_1'], images['image_depth_1']])
         images['image_depth_2'] = torch.cat([images['image_depth_2'], images['image_depth_2'], images['image_depth_2']])
 
-        rgb_images = np.concatenate((images['image_rgb_1'].numpy()[:, ::-1, :], images['image_rgb_2']), axis=2).transpose(1, 2, 0)
-        depth_images = np.concatenate((images['image_depth_1'].numpy()[:, ::-1, :], images['image_depth_2']), axis=2).transpose(1, 2, 0)
+        # Flips camera 2 as it is easier to see image upside down
+        rgb_images = np.concatenate((images['image_rgb_1'], images['image_rgb_2'].numpy()[:, ::-1, :]), axis=2).transpose(1, 2, 0)
+        depth_images = np.concatenate((images['image_depth_1'], images['image_depth_2'].numpy()[:, ::-1, :]), axis=2).transpose(1, 2, 0)
         img = np.concatenate((rgb_images, depth_images), axis=0)[:, :, ::-1].copy()
 
         if should_segment:
