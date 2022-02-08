@@ -1,5 +1,3 @@
-
-from __future__ import annotations
 import argparse
 import cv2
 from collections import namedtuple
@@ -59,7 +57,7 @@ def main(data_file):
 
     font = cv2.FONT_HERSHEY_SIMPLEX
 
-    transition_indices = find_transition_indices(params.data_file)
+    transition_indices = find_transition_indices(params.data_file) # points where the gripper changes state
 
     annotation_mode = HandoverSwitch.ReceivingToGiving
     annotations = []
