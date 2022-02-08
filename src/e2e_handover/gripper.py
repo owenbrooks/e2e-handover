@@ -32,7 +32,7 @@ def close_gripper_msg():
     command.rACT = 1
     command.rGTO = 1
     command.rSP  = 255
-    command.rFR  = 150
+    command.rFR  = 50
 
     return command
 

@@ -35,7 +35,8 @@ class Recorder():
         self.twist_array = 6*[0.0]
         self.filtered_twist_array = 6*[0.0]
 
-        self.gripper_is_open = False
+        self.gripper_is_open = True
+        self.desired_open = True
 
         self.recording_params = rospy.get_param('~recording')
         self.sensor_manager = SensorManager(self.recording_params)
@@ -103,7 +104,7 @@ class Recorder():
                 twist_header = ['vx', 'vy', 'vz', 'wx', 'wy', 'wz']
                 filtered_twist_header = ['vx_filt', 'vy_filt', 'vz_filt', 'wx_filt', 'wy_filt', 'wz_filt']
                 
-                header = ['gripper_is_open'] + twist_header + filtered_twist_header
+                header = ['gripper_is_open', 'desired_open'] + twist_header + filtered_twist_header
                 
                 for image_class in self.image_classes:
                     header.append('image_' + image_class)
@@ -123,7 +124,7 @@ class Recorder():
         csv_path = os.path.join(self.data_dir, self.session_id, self.session_id + '.csv')
         with open(csv_path, 'a+') as csvfile:
             datawriter = csv.writer(csvfile, delimiter=' ')
-            row = [self.gripper_is_open] + self.twist_array + self.filtered_twist_array
+            row = [self.gripper_is_open, self.desired_open] + self.twist_array + self.filtered_twist_array
 
             image_data = {
                 'rgb_1': self.sensor_manager.img_rgb_1,
@@ -170,8 +171,14 @@ class Recorder():
 
     def joy_callback(self, joy_msg):
         share_pressed = joy_msg.buttons[8]
+        triangle_pressed = joy_msg.buttons[2]
+        up_pressed= joy_msg.axes[7]
+
         if share_pressed:
             self.toggle_recording()
+        
+        # Pressing either of these buttons indicates that the robot should learn to associate this with the closed state
+        self.desired_open = not triangle_pressed and not up_pressed
 
     def run(self):
         rate = rospy.Rate(30)
