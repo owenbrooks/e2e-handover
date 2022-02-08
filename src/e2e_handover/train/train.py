@@ -54,7 +54,7 @@ def save_checkpoint(model, model_dir, model_name, epoch, is_best):
         checkpoint_path = os.path.join(model_dir, model_name, model_name + f'_best.pt')
         shutil.copyfile(model_path, checkpoint_path)
 
-def train(model, train_loader, test_loader, device, params):
+def train(model, train_loader, val_loader, device, params):
     model.train()
 
     # Create directory and path for saving model
@@ -74,7 +74,11 @@ def train(model, train_loader, test_loader, device, params):
     optimizer = optim.SGD(model.parameters(), lr=params.learning_rate, momentum=0.9)
     for epoch in range(params.num_epochs):
         running_loss = 0.0
+        running_correct = 0
+        running_total = 0
+
         model.train()
+
         for i, data in enumerate(train_loader):
             # get the inputs
             input_img = torch.Tensor(data['image']).to(device)
@@ -103,20 +107,30 @@ def train(model, train_loader, test_loader, device, params):
             loss.backward()
             optimizer.step()
 
-            # print statistics
+            # aggregate statistics for training epoch
+            output_thresh = pred_gripstate.cpu().data.numpy() > 0.5
+            correct = output_thresh == target_gripstate.cpu().data.numpy().astype(bool)
+            correct_sum = np.sum(correct)
+            running_correct += correct_sum
+            running_total += len(output_thresh)
             running_loss += float(loss.data)
 
             if i % params.log_step == params.log_step-1:    # print every few mini-batches
                 print('Epoch %d. batch loss: %0.5f' %(epoch + 1, loss.data))
 
+        # Compute statistics for epoch
         train_loss = running_loss / len(train_loader)
-        val_loss, val_accuracy = validate(model, test_loader, BCE, MSE, device, params)
+        train_accuracy = running_correct / float(running_total)
+        val_loss, val_accuracy = validate(model, val_loader, BCE, MSE, device, params)
 
-        # Log loss in weights and biases
-        wandb.log({"train_loss": train_loss, "val_loss": val_loss, 'val_acc': val_accuracy})
+        # Log loss and accuracy in weights and biases
+        wandb.log({
+            "train_loss": train_loss, "train_acc": train_accuracy, 
+            "val_loss": val_loss, 'val_acc': val_accuracy
+        })
         wandb.watch(model)
 
-        print("Train loss: %0.5f, test loss: %0.5f" % (train_loss, val_loss))
+        print(f"Train loss: {train_loss:0.5f}, val loss: {val_loss:0.5f}, train acc: {train_accuracy}, val acc: {val_accuracy}")
 
         is_best = val_accuracy > best_acc
         best_acc = max(val_accuracy, best_acc)
@@ -187,10 +201,6 @@ def validate(model, val_loader, bce, mse, device, params):
 
             running_correct += correct_sum
             running_total += len(output_thresh)
-
-            # print(f"out: {pred_gripstate.cpu().data.numpy()}, targ: {target_gripstate.cpu().data.numpy().astype(bool)}, correct: {running_correct}/{running_total}")
-
-            # print statistics
             running_loss += float(loss.data)
 
     val_loss = running_loss / len(val_loader)
