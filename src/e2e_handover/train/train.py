@@ -20,18 +20,21 @@ def main(params):
     print(params)
     dataset = DeepHandoverDataset(params)
 
-    # Split between test and train
-    train_length = int(len(dataset)*(1.0-params.val_fraction))
-    val_length = len(dataset) - train_length
+    # Split between test, validation and train
+    train_length = int(len(dataset)*(1.0-params.val_fraction-params.test_fraction))
+    val_length = int(len(dataset)*params.val_fraction)
+    test_length = int(len(dataset)-train_length-val_length)
 
     if params.use_lstm: # Perform a time-series split, not random
         train_data = torch.utils.data.Subset(dataset, range(0, train_length))
-        val_data = torch.utils.data.Subset(dataset, range(train_length, len(dataset)))
+        val_data = torch.utils.data.Subset(dataset, range(train_length, train_length+val_length))
+        test_data = torch.utils.data.Subset(dataset, range(train_length+val_length, len(dataset)))
     else:
-        train_data, val_data = random_split(dataset, [train_length, val_length], generator=torch.Generator().manual_seed(42))
+        train_data, val_data, test_data = random_split(dataset, [train_length, val_length, test_length], generator=torch.Generator().manual_seed(42))
 
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=params.batch_size, shuffle=True, num_workers=params.num_workers, pin_memory=True)
-    val_loader = torch.utils.data.DataLoader(val_data, batch_size=1, shuffle=True, num_workers=params.num_workers, pin_memory=True)
+    val_loader = torch.utils.data.DataLoader(val_data, batch_size=params.batch_size, shuffle=True, num_workers=params.num_workers, pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=params.batch_size, shuffle=False, num_workers=params.num_workers, pin_memory=True)
 
     # Load pre-trained resnet18 model weights
     model = MultiViewResNet(params)
