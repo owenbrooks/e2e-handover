@@ -4,13 +4,13 @@ from sensor_msgs.msg import Image
 import numpy as np
 import rospy
 
-use_tactile = True
+imported_tactile = True
 try:
     from papillarray_ros_v2.msg import SensorState
     from papillarray_ros_v2.srv import BiasRequest
     from e2e_handover import tactile
 except ImportError:
-    use_tactile = False
+    imported_tactile = False
     print("Couldn't import papillarray")
 
 class SensorManager():
@@ -19,7 +19,7 @@ class SensorManager():
             self.use_force, self.use_tactile, self.use_segmentation) = (
                 sensor_params['use_rgb_1'], sensor_params['use_rgb_2'], 
                 sensor_params['use_depth_1'], sensor_params['use_depth_2'],
-                sensor_params['use_force'], sensor_params['use_tactile'], sensor_params['use_segmentation']
+                sensor_params['use_force'], sensor_params['use_tactile'] and imported_tactile, sensor_params['use_segmentation']
             )
 
         self.img_rgb_1 = None

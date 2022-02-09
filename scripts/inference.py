@@ -2,6 +2,7 @@
 from collections import namedtuple
 from e2e_handover.gripper import ObjDetection, obj_msg_to_enum, open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
 from e2e_handover.image_ops import prepare_image
+from e2e_handover.mover import Mover
 from e2e_handover.train.model_double import MultiViewResNet
 from enum import Enum
 from numpy.core.numeric import NaN
@@ -12,14 +13,11 @@ from sensor_msgs.msg import Joy
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 import rospkg
 import rospy
-from std_msgs.msg import Bool
 import torch
 
-# Node to record data and perform inference given a trained model
+# Node to perform inference given a trained model
 # Launch node, gripper opens
-# Give object to arm (triggered by force threshold)
-# Can take object from arm if needed (triggered by force threshold)
-# Button to toggle recording and toggle gripper
+# Button to toggle gripper
 
 # Data is stored in 'data/${SESSION_ID}' folder, where SESSION_ID is unique timestamp
 # Images are stored in that folder with index and session id as name
@@ -31,6 +29,17 @@ class GripState(Enum):
     HOLDING=3
     RELEASING=4
 
+class HandoverState(Enum):
+    GIVING=1
+    RECEIVING=2
+
+class MotionState(Enum):
+    INITIALISING=0
+    RETRACTED=1
+    REACHING=2
+    EXTENDED=3
+    RETURNING=4
+
 MODEL_THRESHOLD = 0.5
 
 class HandoverNode():
@@ -38,44 +47,38 @@ class HandoverNode():
         rospy.init_node("inference")
 
         inference_params = rospy.get_param('~inference')
-        self.sensor_manager = SensorManager(inference_params)
+        self.sensor_manager = SensorManager(inference_params['giving']) # TODO feed in a combination of both to get all sensors
+        self.mover = Mover()
+        self.motion_state = MotionState.INITIALISING
 
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
         self.joy_sub = rospy.Subscriber('joy', Joy, self.joy_callback) # joystick control
-        self.recording_state_sub = rospy.Subscriber('/recorder/is_recording', Bool, self.recording_state_callback)
         self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
 
-        self.current_state = GripState.WAITING
+        self.current_gripper_state = GripState.WAITING
         self.obj_det_state = ObjDetection.GRIPPER_OFFLINE
+        self.handover_state = HandoverState.RECEIVING
         self.toggle_key_pressed = False
 
-        self.is_inference_active = False
-        self.is_recording = False
+        self.last_retracted = rospy.get_time()
+        self.wait_time_threshold = 2.0 # time to wait before reaching out after having retracted. in seconds
 
-        # Create network and load weights
-        model_file = inference_params['model_file']
-        params = namedtuple("Params", inference_params.keys())(*inference_params.values())
-        rospack = rospkg.RosPack()
-        package_dir = rospack.get_path('e2e_handover')
-        model_path = os.path.join(package_dir, model_file)
-        rospy.loginfo(f"Using model: {model_path}")
-        if os.path.isfile(model_path):
-            self.net = MultiViewResNet(params)
-            self.net.load_state_dict(torch.load(model_path))
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            rospy.loginfo("Using device: " + str(self.device))
-            self.net.to(self.device)
-            self.net.eval()
-        else:
-            self.net = None
-            rospy.logwarn(f"Unable to load model at {model_path}")
+        self.is_inference_active = False
+
+        # Determine model paths
+        self.model_paths = {}
+        for action_string in ['giving', 'receiving']:
+            model_file = inference_params[action_string]['model_file']
+            self.params = namedtuple("Params", inference_params.keys())(*inference_params.values())
+            rospack = rospkg.RosPack()
+            package_dir = rospack.get_path('e2e_handover')
+            self.model_paths[action_string] = os.path.join(package_dir, model_file)
+            rospy.loginfo(f"Using model: {self.model_paths[action_string]} for {action_string}")
 
         self.model_output = NaN
 
-    def recording_state_callback(self, msg):
-        self.is_recording = msg.data
-
     def spin_inference(self):
+        # TODO: feed correct sensor data to model according to handover_params.yaml
         if self.is_inference_active and self.sensor_manager.sensors_ready() and self.net is not None:
             img_rgb_1 = self.sensor_manager.img_rgb_1[:, :, ::-1]
             img_rgb_1_t = prepare_image(img_rgb_1).unsqueeze_(0).to(self.device)
@@ -101,14 +104,34 @@ class HandoverNode():
         if down_pressed or x_pressed:
             self.toggle_gripper()
 
-    def toggle_inference(self):
-        self.is_inference_active = not self.is_inference_active
+    def toggle_inference(self, set_on: bool=None):
+        if set_on is None: # just toggle it
+            self.is_inference_active = not self.is_inference_active
+        else:
+            self.is_inference_active = set_on
+
         self.model_output = NaN
 
         if self.is_inference_active:
             self.sensor_manager.activate()
         else:
             self.sensor_manager.deactivate()
+
+        if set_on:
+            self.load_model()
+
+    def load_model(self):
+        model_path = self.model_paths['giving'] if self.handover_state == HandoverState.GIVING else self.model_paths['receiving']
+        if os.path.isfile(model_path):
+            self.net = MultiViewResNet(self.params)
+            self.net.load_state_dict(torch.load(model_path))
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            rospy.loginfo("Using device: " + str(self.device))
+            self.net.to(self.device)
+            self.net.eval()
+        else:
+            self.net = None
+            rospy.logerr(f"Unable to load model at {model_path}")
 
     def on_key_press(self, key):
         try:
@@ -119,23 +142,24 @@ class HandoverNode():
             if key == keyboard.Key.shift or key == keyboard.Key.shift_r:
                 self.toggle_gripper()
 
-    def compute_next_state(self, toggle_key_pressed):
-        next_state = self.current_state
+    def compute_next_gripper_state(self, toggle_key_pressed):
+        next_state = self.current_gripper_state
 
-        if self.current_state == GripState.HOLDING:
+        if self.current_gripper_state == GripState.HOLDING:
             if toggle_key_pressed or self.model_output > MODEL_THRESHOLD:
                 next_state = GripState.RELEASING
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
-                self.sensor_manager.contactile_bias_srv()
+                if self.params.use_tactile:
+                    self.sensor_manager.contactile_bias_srv()
         elif self.current_state == GripState.WAITING:
             if toggle_key_pressed or self.model_output < MODEL_THRESHOLD:
                 next_state = GripState.GRABBING
                 # close gripper
                 grip_cmd = close_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
-        elif self.current_state == GripState.GRABBING:
+        elif self.current_gripper_state == GripState.GRABBING:
             if self.obj_det_state == ObjDetection.CLOSING_STOPPED:
                 next_state = GripState.HOLDING
             elif self.obj_det_state == ObjDetection.FINISHED_MOTION:
@@ -143,12 +167,35 @@ class HandoverNode():
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
-                self.sensor_manager.contactile_bias_srv()
+                if self.params.use_tactile:
+                    self.sensor_manager.contactile_bias_srv()
         elif self.current_state == GripState.RELEASING:
             if self.obj_det_state == ObjDetection.FINISHED_MOTION:
                 next_state = GripState.WAITING
 
         return next_state
+
+    def transition_state(self, curr_handover, next_handover, curr_mover, next_mover):
+        self.handover_state = next_handover
+        
+        if curr_mover == MotionState.RETRACTED and next_mover == MotionState.REACHING:
+            self.motion_state = MotionState.REACHING
+            self.mover.reach()
+            self.motion_state = MotionState.EXTENDED
+            self.toggle_inference(set_on=True)
+        elif curr_mover == MotionState.EXTENDED and next_mover == MotionState.RETURNING:
+            self.toggle_inference(set_on=False)
+            self.motion_state = MotionState.RETURNING
+            self.mover.retract()
+            self.motion_state = MotionState.RETRACTED
+
+            # Switch from giving to receiving or vice versa
+            if curr_handover == HandoverState.GIVING:
+                self.handover_state = HandoverState.RECEIVING
+            else:
+                self.handover_state = HandoverState.GIVING
+
+            self.last_retracted = rospy.get_time() # (re)start timing of retraction
     
     def run(self):
         rospy.loginfo("Running inference node")
@@ -171,15 +218,38 @@ class HandoverNode():
         
         while not rospy.is_shutdown():
             self.spin_inference()
-            next_state = self.compute_next_state(self.toggle_key_pressed)
-            self.toggle_key_pressed = False
-            if next_state != self.current_state:
-                print("" + str(self.current_state) + " -> " + str(next_state))
-                self.current_state = next_state
 
-            rospy.loginfo(f"Rec: {self.is_recording}, infer: {self.is_inference_active}, out: %.4f, {self.obj_det_state}, {self.current_state}", self.model_output)
+            # Spin state machine that takes care of the actual gripper
+            next_gripper_state = self.compute_next_gripper_state(self.toggle_key_pressed)
+            self.toggle_key_pressed = False
+            if next_gripper_state != self.current_gripper_state:
+                print("" + str(self.current_gripper_state) + " -> " + str(next_gripper_state))
+                self.current_gripper_state = next_gripper_state
+
+            # Spin state machine that determines arm motion and inference model to use
+            retracted_time = self.last_retracted - rospy.get_time()
+            next_handover_state, next_motion_state = compute_handover_and_motion_states(self.handover_state, self.motion_state, next_gripper_state, retracted_time, self.wait_time_threshold)
+            self.transition_state(self.handover_state, next_handover_state, self.motion_state, next_motion_state)
+            
+            rospy.loginfo(f"infer: {self.is_inference_active}, out: %.4f, {self.obj_det_state}, {self.current_gripper_state}", self.model_output)
 
             rate.sleep()
+
+
+def compute_handover_and_motion_states(curr_handover, curr_motion, next_gripper, retracted_time, wait_time_threshold):
+    next_motion = curr_motion
+    next_handover = curr_handover
+
+    if curr_motion == MotionState.RETRACTED:
+        if retracted_time > wait_time_threshold:
+            next_motion = MotionState.REACHING
+    elif curr_motion == MotionState.EXTENDED:
+        received = curr_handover == HandoverState.RECEIVING and next_gripper == GripState.HOLDING
+        released = curr_handover == HandoverState.GIVING and next_gripper == GripState.WAITING
+        if received or released:
+            next_motion = MotionState.RETURNING
+
+    return next_motion, next_handover
 
 if __name__ == "__main__":
     try: 

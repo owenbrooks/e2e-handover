@@ -16,6 +16,10 @@ RUN apt-get -y update && apt-get install -y \
     python3-tk \
     && rm -rf /var/lib/apt/lists/*
 
+# Environment variables for the nvidia-container-runtime.
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
+
 # Make the prompt a little nicer
 RUN echo "PS1='${debian_chroot:+($debian_chroot)}\u@:\w\$ '" >> /etc/bash.bashrc  
 

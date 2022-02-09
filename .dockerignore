@@ -4,3 +4,4 @@ cuda.dockerfile
 .dockerignore
 .dvc
 data
+models

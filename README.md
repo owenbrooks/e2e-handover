@@ -1,13 +1,36 @@
 # 🦾 Deep Human-Robot Handover
+<!-- ![Robot arm waiting to grab a pen from human arm](assets/handover.jpg) -->
+<p align="center">
+    <img src="assets/handover.jpg" style="align:centre" width="50%">
+</p>
+
+## Project structure
+```.
+├── assets                          images for the README
+├── data                            data to train on
+│   └── 2021-12-09-04:56:05
+├── docker                          files for creating and running docker containers
+├── include
+│   └── e2e_handover                header files for cpp ROS nodes
+├── launch                          ROS launch files
+├── models                          trained models
+├── param                           ROS parameters for setting sensor suite
+├── scripts                         python ROS nodes
+├── src
+│   └── e2e_handover                python modules for re-use, and cpp ROS nodes
+│       ├── evaluate                scripts for evaluating models (viewing inference, computing stats)
+│       ├── prepare                 scripts for data prep (calibration, combination, labelling)
+│       └── train                   scripts for training models and defining model architecture
+└── urdf                            robot description files (unused)
+```
+
 ## Force Thresholding Baseline Approach
 Robot activates or releases the gripper when it detects a sufficient force in the z-axis.
 
 `roslaunch e2e_handover force_baseline.launch`
 
-Optional:
-- `roslaunch ur5_moveit_config moveit_rviz.launch rviz_config:=$(rospack find ur5_moveit_config)/launch/moveit.rviz`
-
 ## Data recording
+![](assets/data_collection.png)
 Data is stored in the `data` directory.
 
 Pressing 'r' begins or ends a recording session, identified by a timestamp. Images and a csv file for each session are stored in a folder. Pressing 'shift' toggles the gripper state manually.
@@ -17,20 +40,22 @@ Pressing 'r' begins or ends a recording session, identified by a timestamp. Imag
 Optionally, record the raw ROS messages with `rosbag record rosout /camera/color/image_raw robotiq_ft_wrench Robotiq2FGripperRobotInput /Robotiq2FGripperRobotOutput`
 
 ## Data preparation
-1. `python3 src/e2e_handover/prepare/calibrate_forces.py --data raw.csv`
-2. `python3 src/e2e_handover/prepare/combine_sets.py --data data/2022-02-09-0*rhys/*_calib.csv --out data/2022-02-09-05_rhys/2022-02-09-05_calib_rhys.csv`
-3. `python3 src/e2e_handover/prepare/grip_labeller.py --data data/2022-02-09-05_rhys/2022-02-09-05_calib_rhys.csv`
-4. `python3 src/e2e_handover/prepare/annotate_direction.py --data data/2022-02-09-05_rhys/2022-02-09-05_rhys_calib_labelled.csv.csv`
-5. `python3 src/e2e_handover/prepare/use_future.py --data data/2022-02-08-03\:41\:24_owen/2022-02-08-03\:41\:24_calib_labelled_receive.csv --offset 5`
+1. Calibrate the forces by zeroing out using the first reading: `python3 src/e2e_handover/prepare/calibrate_forces.py --data raw.csv`
+2. Combine data sets together: `python3 src/e2e_handover/prepare/combine_sets.py --data data/2022-02-09-0*rhys/*_calib.csv --out data/2022-02-09-05_rhys/2022-02-09-05_calib_rhys.csv`
+3. Manually edit the open/closed labels: `python3 src/e2e_handover/prepare/grip_labeller.py --data data/2022-02-09-05_rhys/2022-02-09-05_calib_rhys.csv`
+4. Specify which frames belong to "giving" set or "receiving" set: `python3 src/e2e_handover/prepare/annotate_direction.py --data data/2022-02-09-05_rhys/2022-02-09-05_rhys_calib_labelled.csv.csv`
+5. (Optional) offset the data so that the model tries to predict the state in N frames: `python3 src/e2e_handover/prepare/use_future.py --data data/2022-02-08-03\:41\:24_owen/2022-02-08-03\:41\:24_calib_labelled_receive.csv --offset 5`
 
 ## Training
 
 - Define the sensor suite to be used when training in `src/e2e_handover/train/params.yaml`
 - `python3 src/e2e_handover/train/train.py --data data/2022-01-25/2022-01-25-05\:27\:11/2022-01-25-05\:27\:11.csv`
+- Go to [wandb.ai](https://wandb.ai) to see the results of training. 
 
 ## Inference
 
-`roslaunch e2e_handover inference.launch`
+- Define the sensor suite to be used for inference in `param/handover_params.yaml`
+- Launch sensors and inference node: `roslaunch e2e_handover inference.launch`
 
 Pressing 'i' starts or stops inference.
 
@@ -42,18 +67,13 @@ Pressing 'i' starts or stops inference.
 - 2x Contactile papillarray tactile sensors
 
 # Dependencies
-## Using Docker
+## Method 1: Using Docker (recommended)
 
 - Install docker (using `sudo apt install docker.io`)
+- Install [nvidia-docker2](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#setting-up-nvidia-container-toolkit) for cuda (GPU) support
+- Run `./docker/run.sh`
 
-With cuda support:
-- Install [nvidia-docker2](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#setting-up-nvidia-container-toolkit)
-- Run `./docker/cuda_run.sh`
-
-Without cuda support:
-- Run `./docker/run_docker.sh`
-
-## Building from source
+## Method 2: Building from source
 - [ROS Noetic](http://wiki.ros.org/noetic/Installation)
 - [Universal Robots ROS Driver](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver) (Follow *Building* instructions)
 - [fmauch Robot Descriptions](https://github.com/fmauch/universal_robot) (Should be installed as per Universal Robots instructions)
