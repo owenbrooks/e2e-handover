@@ -186,6 +186,8 @@ class Recorder():
         # keyboard input
         key_listener = keyboard.Listener(on_press=self.on_key_press)
         key_listener.start()
+
+        rospy.loginfo("Recorder node up.")
         
         while not rospy.is_shutdown():
             if self.is_recording and self.sensor_manager.sensors_ready():
@@ -194,8 +196,6 @@ class Recorder():
             state_msg = Bool()
             state_msg.data = self.is_recording
             self.recording_pub.publish(state_msg)
-
-            rospy.loginfo(f"Recording: {self.is_recording}")
 
             rate.sleep()
 
