@@ -17,7 +17,7 @@ inference:
   use_depth_1: False
   use_depth_2: False
   use_force: True
-  use_tactile: False
+  use_tactile: True
   use_lstm: False
   use_segmentation: False
   output_velocity: False

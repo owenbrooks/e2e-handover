@@ -190,8 +190,8 @@ class Recorder():
         if share_pressed:
             self.toggle_recording()
 
-        if down_pressed or x_pressed:
-            self.toggle_gripper()
+        # if down_pressed or x_pressed:
+        #     self.toggle_gripper()
         
         # Pressing either of these buttons indicates that the robot should learn to associate this with the closed state
         self.desired_open = not triangle_pressed and not up_pressed
@@ -199,7 +199,7 @@ class Recorder():
     def open_gripper(self):
         grip_cmd = open_gripper_msg()
         self.gripper_pub.publish(grip_cmd)
-        self.contactile_bias_srv()
+        self.sensor_manager.contactile_bias_srv()
     
     def close_gripper(self):
         grip_cmd = close_gripper_msg()
@@ -256,9 +256,10 @@ class Recorder():
 
             next_state = self.compute_next_state(current_state, self.toggle_key_pressed)
             self.toggle_key_pressed = False
-            if next_state != current_state:
-                print("" + str(current_state) + " -> " + str(next_state))
-                current_state = next_state
+            # rospy.loginfo(f"{current_state}, {self.obj_det_state}")
+            # if next_state != current_state:
+            #     print("" + str(current_state) + " -> " + str(next_state))
+            #     current_state = next_state
 
             rate.sleep()
 

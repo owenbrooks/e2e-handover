@@ -7,12 +7,12 @@
   <node name="joy" pkg="joy" type="joy_node" output="screen">
     <param name="default_trig_val" value="True" />
   </node>
-  <node name="rq_sensor" pkg="robotiq_ft_sensor" type="rq_sensor" output="screen">
+  <!-- <node name="rq_sensor" pkg="robotiq_ft_sensor" type="rq_sensor" output="screen">
     <param name="serial_id" value="ttyUSB1" />
   </node>
   <node name="Robotiq2FGripperRtuNode" pkg="robotiq_2f_gripper_control" type="Robotiq2FGripperRtuNode.py" args="/dev/ttyUSB0" output="screen"/>
   <include file="$(find realsense2_camera)/launch/rs_multiple_devices.launch">
     <arg name="serial_no_camera1" value="141722072409"/>
     <arg name="serial_no_camera2" value="815412070589"/>
-  </include>
+  </include> -->
 </launch>

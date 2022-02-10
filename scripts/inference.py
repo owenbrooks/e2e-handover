@@ -128,6 +128,7 @@ class HandoverNode():
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
+                self.sensor_manager.contactile_bias_srv()
         elif self.current_state == GripState.WAITING:
             if toggle_key_pressed or self.model_output < MODEL_THRESHOLD:
                 next_state = GripState.GRABBING
@@ -142,6 +143,7 @@ class HandoverNode():
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
+                self.sensor_manager.contactile_bias_srv()
         elif self.current_state == GripState.RELEASING:
             if self.obj_det_state == ObjDetection.FINISHED_MOTION:
                 next_state = GripState.WAITING
