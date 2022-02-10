@@ -108,8 +108,8 @@ class DeepHandoverDataset(Dataset):
         for key in use_images.keys():
             if use_images[key]:
                 image_rel_path = self.img_labels[key].iloc[idx]
+                # print(image_rel_path)
                 img_path = os.path.join(self.data_dir, image_rel_path)
-                print(img_path)
                 image = Image.open(img_path).convert()
                 if self.main_transform is None:
                     image_t = self.transform_by_image_type[key](image)
