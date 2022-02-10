@@ -1,7 +1,10 @@
 import argparse
+from cmath import nan
 import cv2
 from collections import namedtuple
 from enum import IntEnum
+
+from soupsieve import select
 from e2e_handover.train.dataset import DeepHandoverDataset
 import numpy as np
 import os
@@ -61,6 +64,14 @@ def coordinate_to_index(x, y, page_index):
     index = page_index*samples_per_row*rows_per_page + row*samples_per_row + col
     return index
 
+def index_to_coordinate(index):
+    global sample_height, sample_width, samples_per_row, rows_per_page
+    local_index = index % (samples_per_row*rows_per_page)
+    x = sample_width * (local_index % samples_per_row)
+    y = sample_height * (local_index // samples_per_row)
+
+    return x, y
+
 def main(data_file):
     params =  {
         'data_file': data_file,
@@ -89,17 +100,16 @@ def main(data_file):
     page_index = 0
     prev_index = -1
     prev_click_count = 0
+
+    click_selection = {'start': nan, 'end': nan}
+
     while True:
         index_changed = page_index != prev_index
         clicked = click_count_global != prev_click_count
 
-        if index_changed or clicked:
+        if index_changed:
             if index_changed:
                 prev_index = page_index
-            if clicked:
-                prev_click_count = click_count_global
-                clicked_index = coordinate_to_index(x_global, y_global, page_index)
-                print(clicked_index)
 
             page_thumbnails = []
             for row in range(rows_per_page):
@@ -130,6 +140,26 @@ def main(data_file):
             cv2.imshow('Annotator', img)
             cv2.setMouseCallback('Annotator', click)
 
+        if clicked:
+            prev_click_count = click_count_global
+            clicked_index = coordinate_to_index(x_global, y_global, page_index)
+            print(clicked_index)
+
+            # selection start, selection end, clear selection, open or closed (1/2)
+            if click_selection['start'] is nan:
+                click_selection['start'] = clicked_index
+                selection_image = np.zeros_like(img)
+                x, y = index_to_coordinate(clicked_index)
+                cv2.rectangle(selection_image, (x, y), (x+sample_width, y+sample_height), (50, 0, 50), cv2.FILLED)
+                alpha = 0.5
+                display_img = img.copy()
+                mask = selection_image.astype(bool)
+                display_img[mask] = cv2.addWeighted(display_img, 0.5, selection_image, 0.5, 1.0)[mask]
+                cv2.imshow('Annotator', display_img)
+            else:
+                click_selection['end'] = clicked_index
+
+
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             cv2.destroyAllWindows()
@@ -140,16 +170,8 @@ def main(data_file):
             page_index = (page_index + 1) % len(viewing_dataset)
         elif key == ord('a'): # go to prev frame
             page_index = (page_index - 1) % len(viewing_dataset)
-        elif key == ord('j'): # skip ahead a few frames
-            page_index = (page_index - 25) % len(viewing_dataset)
-        elif key == ord('k'): # go back a few frames
-            page_index = (page_index + 25) % len(viewing_dataset)
-        elif key == ord('l'): # skip ahead to next transition
-            later_transitions = transition_indices[transition_indices > page_index]
-            page_index = later_transitions.min() if len(later_transitions) > 0 else transition_indices[0]
-        elif key == ord('h'): # skip back to prev transition
-            earlier_transitions = transition_indices[transition_indices < page_index]
-            page_index = earlier_transitions.max() if len(earlier_transitions) > 0 else transition_indices[-1]
+        elif key == ord('c'): # clear selection
+            click_selection = {'start': nan, 'end': nan}
         elif key == ord('t'): # switch annotation mode
             if annotation_mode == HandoverSwitch.GivingToReceiving:
                 annotation_mode = HandoverSwitch.ReceivingToGiving
