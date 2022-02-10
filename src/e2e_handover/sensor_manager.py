@@ -7,6 +7,7 @@ import rospy
 use_tactile = True
 try:
     from papillarray_ros_v2.msg import SensorState
+    from papillarray_ros_v2.srv import BiasRequest
     from e2e_handover import tactile
 except ImportError:
     use_tactile = False
@@ -50,6 +51,8 @@ class SensorManager():
             self.tactile_1_readings = None # [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
             self.tactile_2_readings = None # [0.0]*(6+9*6) # 6 global readings plus 9 pillars with 6 readings each
 
+            self.contactile_bias_srv = rospy.ServiceProxy("/hub_0/send_bias_request", BiasRequest)
+
         self.cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images
 
         self.is_active = False
@@ -61,7 +64,7 @@ class SensorManager():
         have_received = [
             ('rgb_1', self.use_rgb_1 and self.img_rgb_1 is None),
             ('rgb_2', self.use_rgb_2 and self.img_rgb_2 is None),
-            ('depth_', self.use_depth_1 and self.img_depth_1 is None),
+            ('depth_1', self.use_depth_1 and self.img_depth_1 is None),
             ('depth_2', self.use_depth_2 and self.img_depth_2 is None),
             ('force', self.use_force and self.raw_wrench_reading is None),
             ('tactile', self.use_tactile and (self.tactile_1_readings is None or self.tactile_2_readings is None)),

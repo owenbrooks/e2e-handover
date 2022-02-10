@@ -2,12 +2,14 @@
 import csv
 import cv2
 from datetime import datetime
-from e2e_handover.sensor_manager import SensorManager
 from e2e_handover import tactile
+from e2e_handover.gripper import ObjDetection, obj_msg_to_enum, open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
+from e2e_handover.sensor_manager import SensorManager
+from inference import GripState
 from geometry_msgs.msg import Twist
 import os
 from pynput import keyboard
-from robotiq_2f_gripper_control.msg import  _Robotiq2FGripper_robot_input as inputMsg
+from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 import rospkg
 import rospy
 from sensor_msgs.msg import Joy
@@ -24,6 +26,8 @@ class Recorder():
         self.twist_sub = rospy.Subscriber('/twist_cmd_raw', Twist, self.twist_callback)
         self.filtered_twist_sub = rospy.Subscriber('/twist_cmd_filtered', Twist, self.filtered_twist_callback)
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
+        self.gripper_pub = rospy.Publisher('/Robotiq2FGripperRobotOutput', outputMsg.Robotiq2FGripper_robot_output, queue_size=1)
+
         self.joy_sub = rospy.Subscriber('joy', Joy, self.joy_callback) # joystick control
 
         self.recording_pub = rospy.Publisher('~is_recording', Bool, queue_size=10)
@@ -37,6 +41,9 @@ class Recorder():
 
         self.gripper_is_open = True
         self.desired_open = True
+        self.obj_det_state = ObjDetection.GRIPPER_OFFLINE
+
+        self.toggle_key_pressed = False
 
         self.recording_params = rospy.get_param('~recording')
         self.sensor_manager = SensorManager(self.recording_params)
@@ -62,6 +69,8 @@ class Recorder():
             self.gripper_is_open = True
         else:
             self.gripper_is_open = False
+
+        self.obj_det_state = obj_msg_to_enum[gripper_input_msg.gOBJ]
 
     def twist_callback(self, twist_msg):
         self.twist_array = [twist_msg.linear.x, twist_msg.linear.y, twist_msg.linear.z, twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z]
@@ -151,7 +160,7 @@ class Recorder():
             rospy.loginfo("Hadn't yet started recording.")
         else:
             self.is_recording = False
-            self.sensor_manager.deactivate()
+            # self.sensor_manager.deactivate()
             rospy.loginfo(f"Finished recording. Session: {self.session_id}")
             rospy.loginfo(f"Recorded {self.row_count + 1} frames")
 
@@ -161,13 +170,17 @@ class Recorder():
         else:
             self.start_recording()
 
+    def toggle_gripper(self):
+        self.toggle_key_pressed = True
+
     def on_key_press(self, key):
         try:
             char = key.char
             if char == 'r': # r key to start/stop recording
                 self.toggle_recording()
         except AttributeError: # special keys (ctrl, alt, etc.) will cause this exception
-            pass
+            if key == keyboard.Key.shift or key == keyboard.Key.shift_r:
+                self.toggle_gripper()
 
     def joy_callback(self, joy_msg):
         share_pressed = joy_msg.buttons[8]
@@ -176,26 +189,73 @@ class Recorder():
 
         if share_pressed:
             self.toggle_recording()
+
+        if down_pressed or x_pressed:
+            self.toggle_gripper()
         
         # Pressing either of these buttons indicates that the robot should learn to associate this with the closed state
         self.desired_open = not triangle_pressed and not up_pressed
 
+    def compute_next_state(self, current_state, toggle_key_pressed):
+        next_state = current_state
+
+        if current_state == GripState.HOLDING:
+            if toggle_key_pressed:
+                next_state = GripState.RELEASING
+                # open gripper
+                grip_cmd = open_gripper_msg()
+                self.gripper_pub.publish(grip_cmd)
+        elif current_state == GripState.WAITING:
+            if toggle_key_pressed:
+                next_state = GripState.GRABBING
+                # close gripper
+                grip_cmd = close_gripper_msg()
+                self.gripper_pub.publish(grip_cmd)
+        elif current_state == GripState.GRABBING:
+            if self.obj_det_state == ObjDetection.CLOSING_STOPPED:
+                next_state = GripState.HOLDING
+            elif self.obj_det_state == ObjDetection.FINISHED_MOTION:
+                next_state = GripState.RELEASING
+                # open gripper
+                grip_cmd = open_gripper_msg()
+                self.gripper_pub.publish(grip_cmd)
+        elif current_state == GripState.RELEASING:
+            if self.obj_det_state == ObjDetection.FINISHED_MOTION:
+                next_state = GripState.WAITING
+
+        return next_state
+
     def run(self):
         rate = rospy.Rate(30)
+
+        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+            rospy.loginfo("Waiting for gripper to connect")
+            rate.sleep()
+
+        # initialise the gripper via reset and activate messages
+        grip_cmd = reset_gripper_msg()
+        self.gripper_pub.publish(grip_cmd)
+        rospy.sleep(0.1)
+        grip_cmd = activate_gripper_msg()
+        self.gripper_pub.publish(grip_cmd)
 
         # keyboard input
         key_listener = keyboard.Listener(on_press=self.on_key_press)
         key_listener.start()
 
         rospy.loginfo("Recorder node up.")
+
+        current_state = GripState.WAITING
         
         while not rospy.is_shutdown():
             if self.is_recording and self.sensor_manager.sensors_ready():
                 self.record_row()
 
-            state_msg = Bool()
-            state_msg.data = self.is_recording
-            self.recording_pub.publish(state_msg)
+            next_state = self.compute_next_state(current_state, self.toggle_key_pressed)
+            self.toggle_key_pressed = False
+            if next_state != current_state:
+                print("" + str(current_state) + " -> " + str(next_state))
+                current_state = next_state
 
             rate.sleep()
 
