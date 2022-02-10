@@ -43,6 +43,24 @@ def save_annotations(annotations, data_file, dataset_length):
     out_df = pd.DataFrame(annotations, columns=['index', 'transition_val', 'transition_str'])
     out_df.to_csv(new_filename, sep=' ', index=False)
 
+x_global = 0
+y_global = 0
+click_count_global = 0
+
+def click(event, x, y, flags, param):
+    if event == cv2.EVENT_LBUTTONDOWN:
+        global x_global, y_global, click_count_global
+        x_global, y_global = x, y
+        click_count_global += 1
+        # print(x, y, event)
+
+def coordinate_to_index(x, y, page_index):
+    global sample_height, sample_width, samples_per_row, rows_per_page
+    row = y // sample_height
+    col = x // sample_width
+    index = page_index*samples_per_row*rows_per_page + row*samples_per_row + col
+    return index
+
 def main(data_file):
     params =  {
         'data_file': data_file,
@@ -67,46 +85,54 @@ def main(data_file):
 
     annotation_mode = HandoverSwitch.ReceivingToGiving
     annotations = []
-    
+
     page_index = 0
+    prev_index = -1
+    prev_click_count = 0
     while True:
-        page_thumbnails = []
-        for row in range(rows_per_page):
-            row_thumbnails = []
-            for col in range(samples_per_row):
-                # Load image from dataset
-                sample = viewing_dataset[page_index*samples_per_row*rows_per_page + row*samples_per_row + col]
-                images = {}
-                images['image_rgb_1'] = sample['image'][0:3, :, :].numpy()[:, ::-1, :]
-                images['image_rgb_2'] = sample['image'][3:6, :, :]
+        index_changed = page_index != prev_index
+        clicked = click_count_global != prev_click_count
 
-                # Flips camera 2 as it is easier to see image upside down
-                img = np.concatenate((images['image_rgb_1'], images['image_rgb_2']), axis=2).transpose(1, 2, 0)[:, :, ::-1].copy()
-                row_thumbnails.append(img)
-            row_img = np.concatenate(row_thumbnails, axis=1)
-            page_thumbnails.append(row_img)
+        if index_changed or clicked:
+            if index_changed:
+                prev_index = page_index
+            if clicked:
+                prev_click_count = click_count_global
+                clicked_index = coordinate_to_index(x_global, y_global, page_index)
+                print(clicked_index)
 
-        img = np.concatenate(page_thumbnails, axis=0)
-        print(img.shape)
+            page_thumbnails = []
+            for row in range(rows_per_page):
+                row_thumbnails = []
+                for col in range(samples_per_row):
+                    # Load image from dataset
+                    sample_index = page_index*samples_per_row*rows_per_page + row*samples_per_row + col
+                    sample = viewing_dataset[sample_index]
+                    image_rgb_1 = sample['image'][0:3, :, :].numpy()[:, ::-1, ::-1] # Flip camera 2 as it is easier to see image upside down
+                    image_rgb_2 = sample['image'][3:6, :, :]
+                    img = np.concatenate((image_rgb_1, image_rgb_2), axis=2).transpose(1, 2, 0)[:, :, ::-1].copy()
 
-        # Add text to image
-        image_number_string = str(page_index*samples_per_row*rows_per_page) + '/' + str(len(viewing_dataset))
-        cv2.putText(img, image_number_string, (0, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
-        ground_truth_state = 'open' if sample['gripper_is_open'] else 'closed'
-        cv2.putText(img, ground_truth_state, (550, 420), font, 0.8, (255, 255, 255), 1, cv2.LINE_AA)
-        cv2.putText(img, str(annotation_mode), (400, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
-        cv2.imshow('Annotator', img)
-        
-        key = cv2.waitKey(0) & 0xFF
+                    # Display label on image
+                    ground_truth_state = 'o' if sample['gripper_is_open'] else 'c'
+                    colour = (0, 255, 0) if sample['gripper_is_open'] else (0, 0, 255)
+                    cv2.putText(img, ground_truth_state, (0, 15), font, 0.8, colour, 1, cv2.LINE_AA)
+
+                    row_thumbnails.append(img)
+
+                row_img = np.concatenate(row_thumbnails, axis=1)
+                page_thumbnails.append(row_img)
+
+            img = np.concatenate(page_thumbnails, axis=0)
+
+            # Add text to image
+            image_number_string = str(page_index*samples_per_row*rows_per_page) + '/' + str(len(viewing_dataset))
+            cv2.putText(img, image_number_string, (0, img.shape[0]-10), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.imshow('Annotator', img)
+            cv2.setMouseCallback('Annotator', click)
+
+        key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             cv2.destroyAllWindows()
-            # print("Would you like to save annotations? (y/n)")
-            # x = input()
-            # if x.lower()[0] == 'y':
-            #     save_annotations(annotations, data_file, len(viewing_dataset))
-            #     print('Saved')
-            # else:
-            #     print('Did not save')
             break
 
         # Keyboard controls
