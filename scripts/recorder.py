@@ -196,29 +196,32 @@ class Recorder():
         # Pressing either of these buttons indicates that the robot should learn to associate this with the closed state
         self.desired_open = not triangle_pressed and not up_pressed
 
+    def open_gripper(self):
+        grip_cmd = open_gripper_msg()
+        self.gripper_pub.publish(grip_cmd)
+        self.contactile_bias_srv()
+    
+    def close_gripper(self):
+        grip_cmd = close_gripper_msg()
+        self.gripper_pub.publish(grip_cmd)
+
     def compute_next_state(self, current_state, toggle_key_pressed):
         next_state = current_state
 
         if current_state == GripState.HOLDING:
             if toggle_key_pressed:
                 next_state = GripState.RELEASING
-                # open gripper
-                grip_cmd = open_gripper_msg()
-                self.gripper_pub.publish(grip_cmd)
+                self.open_gripper()
         elif current_state == GripState.WAITING:
             if toggle_key_pressed:
                 next_state = GripState.GRABBING
-                # close gripper
-                grip_cmd = close_gripper_msg()
-                self.gripper_pub.publish(grip_cmd)
+                self.close_gripper()
         elif current_state == GripState.GRABBING:
             if self.obj_det_state == ObjDetection.CLOSING_STOPPED:
                 next_state = GripState.HOLDING
             elif self.obj_det_state == ObjDetection.FINISHED_MOTION:
                 next_state = GripState.RELEASING
-                # open gripper
-                grip_cmd = open_gripper_msg()
-                self.gripper_pub.publish(grip_cmd)
+                self.open_gripper()
         elif current_state == GripState.RELEASING:
             if self.obj_det_state == ObjDetection.FINISHED_MOTION:
                 next_state = GripState.WAITING
