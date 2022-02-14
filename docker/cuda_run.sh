@@ -1,8 +1,6 @@
 #!/bin/bash
 # Script for building and working in a docker container
 
-CONTAINER_NAME=e2e_cuda
-IMAGE_NAME=ghcr.io/owenbrooks/e2e-handover:main
 attach_to_container() 
 {
     # Allow docker windows to show on our current X Server
@@ -42,12 +40,36 @@ run_without_gpu()
         -d $IMAGE_NAME /usr/bin/tail -f /dev/null
 }
 
+build_image() 
+{
+    docker build . -t $IMAGE_NAME -f $DOCKER_FILE
+}
+
+# Check for nvidia-container-runtime and set variables for GPU/no GPU accordingly
+if [[ $(docker info | grep Runtimes) =~ nvidia ]] ; then # computer has nvidia-container-runtime, use it for GPU support
+    echo "GPU available"
+    CONTAINER_NAME=e2e_cuda
+    IMAGE_NAME=ghcr.io/owenbrooks/e2e-handover:main
+    DOCKER_FILE=docker/cuda.dockerfile
+    GPU_ON=true
+else # no nvidia-container-runtime
+    echo "GPU not available. Install nvidia container runtime to enable support."
+    CONTAINER_NAME=e2e_cpu
+    IMAGE_NAME=e2e_cpu
+    DOCKER_FILE=docker/Dockerfile
+    GPU_ON=false
+fi  
+
 case "$1" in
 "build")
-    docker build . -t $IMAGE_NAME -f docker/cuda.dockerfile
+    build_image
     ;;
 "pull")
-    docker pull $IMAGE_NAME
+    if [ "$GPU_ON" = true ] ; then
+        docker pull $IMAGE_NAME
+    else
+        echo "Can only pull the cuda image. For cpu, build the image instead."
+    fi
     ;;
 "rm")
     docker rm -f $CONTAINER_NAME
@@ -67,10 +89,14 @@ Available commands:
     ;;
 *) # Attach a new terminal to the container (pulling, creating and starting it if necessary)
     if [ -z "$(docker images -f reference=$IMAGE_NAME -q)" ]; then # if the image does not yet exist, pull it
-        docker pull $IMAGE_NAME
+        if [ "$GPU_ON" = true ] ; then
+            docker pull $IMAGE_NAME
+        else
+            build_image
+        fi
     fi
     if [ -z "$(docker ps -qa -f name=$CONTAINER_NAME)" ]; then # if container has not yet been created, create it
-        if [[ $(docker info | grep Runtimes) =~ nvidia ]] ; then # computer has nvidia-container-runtime, use it for GPU support
+        if [ "$GPU_ON" = true ] ; then # computer has nvidia-container-runtime, use it for GPU support
             echo "Initialising with GPU support"
             run_with_gpu
         else # no nvidia-container-runtime

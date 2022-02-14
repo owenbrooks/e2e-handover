@@ -3,6 +3,7 @@
 
 CONTAINER_NAME=e2e_cpu
 IMAGE_NAME=e2e_cpu
+DOCKER_FILE=docker/Dockerfile
 attach_to_container() 
 {
     # Allow docker windows to show on our current X Server
@@ -44,7 +45,7 @@ run_without_gpu()
 
 case "$1" in
 "build")
-    docker build . -t $IMAGE_NAME -f docker/Dockerfile
+    docker build . -t $IMAGE_NAME -f $DOCKER_FILE
     ;;
 
 "rm")
@@ -65,7 +66,7 @@ Available commands:
     ;;
 *) # Attach a new terminal to the container (building, creating and starting it if necessary)
     if [ -z "$(docker images -f reference=$IMAGE_NAME -q)" ]; then # if the image has not yet been built, build it
-        docker build . -t e2e -f docker/Dockerfile
+        docker build . -t $CONTAINER_NAME -f $DOCKER_FILE
     fi
     if [ -z "$(docker ps -qa -f name=$CONTAINER_NAME)" ]; then # if container has not yet been created, create it
         if [[ $(docker info | grep Runtimes) =~ nvidia ]] ; then # computer has nvidia-container-runtime, use it for GPU support
