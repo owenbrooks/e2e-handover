@@ -1,16 +1,18 @@
 #!/bin/bash
 # Script for building and working in a docker container
 
+CONTAINER_NAME=e2e_cuda
+IMAGE_NAME=ghcr.io/owenbrooks/e2e-handover:main
 attach_to_container() 
 {
     # Allow docker windows to show on our current X Server
     xhost + >> /dev/null
 
     # Start the container in case it's stopped
-    docker start cuda_test
+    docker start $CONTAINER_NAME
 
     # Attach a terminal into the container
-    exec docker exec -it cuda_test bash
+    exec docker exec -it $CONTAINER_NAME bash
 }
 
 run_with_gpu()
@@ -22,10 +24,10 @@ run_with_gpu()
         -v "/tmp/.X11-unix:/tmp/.X11-unix:rw" \
         --runtime=nvidia \
         --net=host \
-        --name cuda_test \
+        --name $CONTAINER_NAME \
         --gpus all \
         --entrypoint /ros_entrypoint.sh \
-        -d ghcr.io/owenbrooks/e2e-handover:main /usr/bin/tail -f /dev/null
+        -d $IMAGE_NAME /usr/bin/tail -f /dev/null
 }
 run_without_gpu()
 {
@@ -35,26 +37,26 @@ run_without_gpu()
         -v "$(pwd):/catkin_ws/src/e2e-handover:rw" \
         -v "/tmp/.X11-unix:/tmp/.X11-unix:rw" \
         --net=host \
-        --name cuda_test \
+        --name $CONTAINER_NAME \
         --entrypoint /ros_entrypoint.sh \
-        -d ghcr.io/owenbrooks/e2e-handover:main /usr/bin/tail -f /dev/null
+        -d $IMAGE_NAME /usr/bin/tail -f /dev/null
 }
 
 case "$1" in
 "build")
-    docker build . -t ghcr.io/owenbrooks/e2e-handover:main -f docker/cuda.dockerfile
+    docker build . -t $IMAGE_NAME -f docker/cuda.dockerfile
     ;;
 "pull")
-    docker pull ghcr.io/owenbrooks/e2e-handover:main
+    docker pull $IMAGE_NAME
     ;;
 "rm")
-    docker rm -f cuda_test
+    docker rm -f $CONTAINER_NAME
     ;;
 "--help")
     echo "Usage: run_docker.sh [command]
 Available commands:
     run_docker.sh
-        Attach a new terminal to the container (pulling, creating and starting it if necessary)
+        Attach a new terminal to the container (pulling/building, creating and starting it if necessary)
     run_docker.sh build
         Build a new image from the Dockerfile in the current directory
     run_docker.sh rm
@@ -64,15 +66,15 @@ Available commands:
     "
     ;;
 *) # Attach a new terminal to the container (pulling, creating and starting it if necessary)
-    if [ -z "$(docker images -f reference=ghcr.io/owenbrooks/e2e-handover:main -q)" ]; then # if the image does not yet exist, pull it
-        docker pull ghcr.io/owenbrooks/e2e-handover:main
+    if [ -z "$(docker images -f reference=$IMAGE_NAME -q)" ]; then # if the image does not yet exist, pull it
+        docker pull $IMAGE_NAME
     fi
-    if [ -z "$(docker ps -qa -f name=cuda_test)" ]; then # if container has not yet been created, create it
+    if [ -z "$(docker ps -qa -f name=$CONTAINER_NAME)" ]; then # if container has not yet been created, create it
         if [[ $(docker info | grep Runtimes) =~ nvidia ]] ; then # computer has nvidia-container-runtime, use it for GPU support
             echo "Initialising with GPU support"
             run_with_gpu
         else # no nvidia-container-runtime
-            echo "Running without GPU support"
+            echo "Initialising without GPU support"
             run_without_gpu
         fi        
     fi
