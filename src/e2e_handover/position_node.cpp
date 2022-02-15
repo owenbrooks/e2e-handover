@@ -29,52 +29,24 @@ int main(int argc, char **argv)
   const moveit::core::JointModelGroup* joint_model_group =
       move_group_interface.getCurrentState(max_waiting_time)->getJointModelGroup(PLANNING_GROUP);
 
-  // Visualization
-  // ^^^^^^^^^^^^^
-  namespace rvt = rviz_visual_tools;
-  moveit_visual_tools::MoveItVisualTools visual_tools("base");
-  visual_tools.deleteAllMarkers();
+  moveit::planning_interface::MoveGroupInterface::Plan my_plan;
 
-  // Remote control is an introspection tool that allows users to step through a high level script
-  // via buttons and keyboard shortcuts in RViz
-  visual_tools.loadRemoteControl();
+  moveit::core::RobotStatePtr current_state = move_group_interface.getCurrentState();
+  // base, shoulder, elbow, wrist1, wrist2, wrist3
+  std::vector<double> joint_group_positions = {deg2rad(90.), deg2rad(-50.), deg2rad(100.), deg2rad(-230.), deg2rad(-90.), deg2rad(0.)};
+  // Now, plan to the new joint space goal.
+  move_group_interface.setJointValueTarget(joint_group_positions);
 
-  // RViz provides many types of markers, in this demo we will use text, cylinders, and spheres
-  Eigen::Isometry3d text_pose = Eigen::Isometry3d::Identity();
-  text_pose.translation().z() = 1.0;
-  visual_tools.publishText(text_pose, "MoveGroupInterface Demo", rvt::WHITE, rvt::XLARGE);
-  visual_tools.trigger();
-
-  while (true) {
-    moveit::planning_interface::MoveGroupInterface::Plan my_plan;
-
-    moveit::core::RobotStatePtr current_state = move_group_interface.getCurrentState();
-    // base, shoulder, elbow, wrist1, wrist2, wrist3
-    std::vector<double> joint_group_positions = {deg2rad(90.), deg2rad(-50.), deg2rad(100.), deg2rad(-230.), deg2rad(-90.), deg2rad(0.)};
-    // Now, plan to the new joint space goal and visualize the plan.
-    move_group_interface.setJointValueTarget(joint_group_positions);
-
-    bool success = (move_group_interface.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-    ROS_INFO_NAMED("tutorial", "Visualizing plan (joint space goal) %s", success ? "" : "FAILED");
-
-    auto remote_control = visual_tools.getRemoteControl();
-    ROS_INFO("Press 'continue' to re-plan, or press 'next' to execute. (in the RvizVisualToolsGui window)");
-    remote_control->waitForNextStep();
-
-    if (!remote_control->getAutonomous()) {
-        ROS_INFO("Executing plan");
-        move_group_interface.execute(my_plan);
-    } else {
-      remote_control->setAutonomous(false);
-    }
-
-    // // Visualize the plan in RViz
-    // visual_tools.deleteAllMarkers();
-    // visual_tools.publishText(text_pose, "Joint Space Goal", rvt::WHITE, rvt::XLARGE);
-    // visual_tools.publishTrajectoryLine(my_plan.trajectory_, joint_model_group);
-    // visual_tools.trigger();
-
+  bool success = (move_group_interface.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+  ROS_INFO_NAMED("Position", "Planning state: %s", success ? "" : "FAILED");
+  
+  char response;
+  while (response != 'y') {
+    std::cout << "Execute plan? (y/n): ";
+    std::cin >> response;
   }
+  ROS_INFO("Executing plan");
+  move_group_interface.execute(my_plan);
 
   ros::shutdown();
   return 0;
