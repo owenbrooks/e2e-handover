@@ -40,6 +40,7 @@ class Recorder():
         self.filtered_twist_array = 6*[0.0]
 
         self.gripper_is_open = True
+        self.gripper_pos = 0
         self.desired_open = True
         self.obj_det_state = ObjDetection.GRIPPER_OFFLINE
 
@@ -64,6 +65,8 @@ class Recorder():
     def gripper_state_callback(self, gripper_input_msg):
         # print(gripper_input_msg)
         position_requested = gripper_input_msg.gPR
+        position_actual = gripper_input_msg.gPO
+        self.gripper_pos = position_actual
         # should have value 0x00 for open, 0xFF for closed
         if position_requested == 0:
             self.gripper_is_open = True
@@ -186,12 +189,14 @@ class Recorder():
         share_pressed = joy_msg.buttons[8]
         triangle_pressed = joy_msg.buttons[2]
         up_pressed= joy_msg.axes[7]
+        down_pressed = joy_msg.axes[7] == -1
+        x_pressed = joy_msg.buttons[0] == 1
 
         if share_pressed:
             self.toggle_recording()
 
-        # if down_pressed or x_pressed:
-        #     self.toggle_gripper()
+        if down_pressed or x_pressed:
+            self.toggle_gripper()
         
         # Pressing either of these buttons indicates that the robot should learn to associate this with the closed state
         self.desired_open = not triangle_pressed and not up_pressed
@@ -199,7 +204,7 @@ class Recorder():
     def open_gripper(self):
         grip_cmd = open_gripper_msg()
         self.gripper_pub.publish(grip_cmd)
-        self.sensor_manager.contactile_bias_srv()
+        # self.sensor_manager.contactile_bias_srv()
     
     def close_gripper(self):
         grip_cmd = close_gripper_msg()
@@ -207,6 +212,8 @@ class Recorder():
 
     def compute_next_state(self, current_state, toggle_key_pressed):
         next_state = current_state
+
+        gripper_closed = self.gripper_pos > 20 # used since it takes time for the ObjDet state to change from FINISHED_MOTION to IN_MOTION
 
         if current_state == GripState.HOLDING:
             if toggle_key_pressed:
@@ -219,7 +226,7 @@ class Recorder():
         elif current_state == GripState.GRABBING:
             if self.obj_det_state == ObjDetection.CLOSING_STOPPED:
                 next_state = GripState.HOLDING
-            elif self.obj_det_state == ObjDetection.FINISHED_MOTION:
+            elif self.obj_det_state == ObjDetection.FINISHED_MOTION and gripper_closed:
                 next_state = GripState.RELEASING
                 self.open_gripper()
         elif current_state == GripState.RELEASING:
@@ -255,11 +262,11 @@ class Recorder():
                 self.record_row()
 
             next_state = self.compute_next_state(current_state, self.toggle_key_pressed)
+            # rospy.loginfo(f"{self.gripper_pos} {current_state}, {self.obj_det_state}, {self.toggle_key_pressed}")
             self.toggle_key_pressed = False
-            # rospy.loginfo(f"{current_state}, {self.obj_det_state}")
-            # if next_state != current_state:
-            #     print("" + str(current_state) + " -> " + str(next_state))
-            #     current_state = next_state
+            if next_state != current_state:
+                print("" + str(current_state) + " -> " + str(next_state))
+                current_state = next_state
 
             rate.sleep()
 
