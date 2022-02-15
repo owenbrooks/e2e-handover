@@ -107,7 +107,7 @@ def main(data_file):
 
 def save_labels(manual_open_labels, data_file):
     data = pd.read_csv(data_file, sep=' ')
-    new_labels = data['gripper_is_open'].copy()
+    new_labels = data['gripper_is_open']
 
     manually_opened = manual_open_labels == GripperLabel.EditedOpen
     manually_closed = manual_open_labels == GripperLabel.EditedClosed
