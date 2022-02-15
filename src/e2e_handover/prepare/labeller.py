@@ -4,17 +4,16 @@ import cv2
 from collections import namedtuple
 from enum import IntEnum
 
-from soupsieve import select
 from e2e_handover.train.dataset import DeepHandoverDataset
 import numpy as np
 import os
 import pandas as pd
 from torchvision import transforms
 
-samples_per_row = 7
-rows_per_page = 10
-sample_height = 90
-sample_width = 120*2
+samples_per_row = 5
+rows_per_page = 7
+sample_height = 120
+sample_width = 160*2
 
 class HandoverSwitch(IntEnum):
     GivingToReceiving=0
@@ -118,8 +117,8 @@ def main(data_file):
                     # Load image from dataset
                     sample_index = page_index*samples_per_row*rows_per_page + row*samples_per_row + col
                     sample = viewing_dataset[sample_index]
-                    image_rgb_1 = sample['image'][0:3, :, :].numpy()[:, ::-1, ::-1] # Flip camera 2 as it is easier to see image upside down
-                    image_rgb_2 = sample['image'][3:6, :, :]
+                    image_rgb_1 = sample['image'][0:3, :, :]
+                    image_rgb_2 = sample['image'][3:6, :, :].numpy()[:, ::-1, ::-1] # Flip camera 2 as it is easier to see image upside down
                     img = np.concatenate((image_rgb_1, image_rgb_2), axis=2).transpose(1, 2, 0)[:, :, ::-1].copy()
 
                     # Display label on image
@@ -148,17 +147,12 @@ def main(data_file):
             # selection start, selection end, clear selection, open or closed (1/2)
             if click_selection['start'] is nan:
                 click_selection['start'] = clicked_index
-                selection_image = np.zeros_like(img)
-                x, y = index_to_coordinate(clicked_index)
-                cv2.rectangle(selection_image, (x, y), (x+sample_width, y+sample_height), (50, 0, 50), cv2.FILLED)
-                alpha = 0.5
-                display_img = img.copy()
-                mask = selection_image.astype(bool)
-                display_img[mask] = cv2.addWeighted(display_img, 0.5, selection_image, 0.5, 1.0)[mask]
+                display_img = display_selection(clicked_index, clicked_index, img)
                 cv2.imshow('Annotator', display_img)
             else:
                 click_selection['end'] = clicked_index
-
+                display_img = display_selection(click_selection['start'], click_selection['end'], img)
+                cv2.imshow('Annotator', display_img)
 
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
@@ -172,6 +166,7 @@ def main(data_file):
             page_index = (page_index - 1) % len(viewing_dataset)
         elif key == ord('c'): # clear selection
             click_selection = {'start': nan, 'end': nan}
+            cv2.imshow('Annotator', img)
         elif key == ord('t'): # switch annotation mode
             if annotation_mode == HandoverSwitch.GivingToReceiving:
                 annotation_mode = HandoverSwitch.ReceivingToGiving
@@ -186,6 +181,17 @@ def main(data_file):
                 annotation_mode = HandoverSwitch.GivingToReceiving
         elif key == ord('m'): # write annotations to disk
             save_annotations(annotations, data_file, len(viewing_dataset))
+
+def display_selection(start, end, orig_img):
+    selection_image = np.zeros_like(orig_img)
+    display_img = orig_img.copy()
+    for index in range(start, end+1):
+        x, y = index_to_coordinate(index)
+        cv2.rectangle(selection_image, (x, y), (x+sample_width, y+sample_height), (50, 0, 50), cv2.FILLED)
+        alpha = 0.01
+        mask = selection_image.astype(bool)
+        display_img[mask] = cv2.addWeighted(display_img, alpha, selection_image, 1-alpha, 1.0)[mask]
+    return display_img
 
 def apply(data_file):
     orig_data = pd.read_csv(data_file, sep=' ')
