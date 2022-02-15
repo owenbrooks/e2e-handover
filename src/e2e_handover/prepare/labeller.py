@@ -121,10 +121,9 @@ def main(data_file):
                     image_rgb_2 = sample['image'][3:6, :, :].numpy()[:, ::-1, ::-1] # Flip camera 2 as it is easier to see image upside down
                     img = np.concatenate((image_rgb_1, image_rgb_2), axis=2).transpose(1, 2, 0)[:, :, ::-1].copy()
 
-                    # Display label on image
-                    ground_truth_state = 'o' if sample['gripper_is_open'] else 'c'
+                    # Display label on image by coloured rectangle
                     colour = (0, 255, 0) if sample['gripper_is_open'] else (0, 0, 255)
-                    cv2.putText(img, ground_truth_state, (0, 15), font, 0.8, colour, 1, cv2.LINE_AA)
+                    cv2.rectangle(img, (0, 0), (sample_width, sample_height), colour, 3)
 
                     row_thumbnails.append(img)
 
