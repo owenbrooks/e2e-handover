@@ -17,11 +17,11 @@ Pressing 'r' begins or ends a recording session, identified by a timestamp. Imag
 Optionally, record the raw ROS messages with `rosbag record rosout /camera/color/image_raw robotiq_ft_wrench Robotiq2FGripperRobotInput /Robotiq2FGripperRobotOutput`
 
 ## Data preparation
-`python3 src/e2e_handover/prepare/grip_labeller.py --data raw.csv`
-`python3 src/e2e_handover/prepare/calibrate_forces.py --data labelled.csv`
-`python3 src/e2e_handover/prepare/annotate_direction.py --data calib.csv`
-`python3 src/e2e_handover/prepare/annotate_direction.py --data --apply calib.csv`
-`python3 src/e2e_handover/prepare/use_future.py --data data/2022-02-08-03\:41\:24_owen/2022-02-08-03\:41\:24_calib_receive.csv --offset 5`
+`python3 src/e2e_handover/prepare/calibrate_forces.py --data raw.csv`
+`python3 src/e2e_handover/prepare/combine_sets.py --data data/2022-02-09-0*rhys/*_calib.csv --out data/2022-02-09-05_rhys/2022-02-09-05_calib_rhys.csv`
+`python3 src/e2e_handover/prepare/grip_labeller.py --data data/2022-02-09-05_rhys/2022-02-09-05_calib_rhys.csv`
+`python3 src/e2e_handover/prepare/annotate_direction.py --data data/2022-02-09-05_rhys/2022-02-09-05_rhys_calib_labelled.csv.csv`
+`python3 src/e2e_handover/prepare/use_future.py --data data/2022-02-08-03\:41\:24_owen/2022-02-08-03\:41\:24_calib_labelled_receive.csv --offset 5`
 
 ## Training
 
@@ -114,10 +114,7 @@ Running position node outside gazebo
 
 Running position node in gazebo
 
-- `roslaunch ur_gazebo ur5_bringup.launch`
-- `roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch sim:=true`
-- `roslaunch ur5_moveit_config moveit_rviz.launch rviz_config:=$(rospack find ur5_moveit_config)/launch/moveit.rviz`
-- `rosrun e2e_handover position`
+- `roslaunch e2e_handover position.launch`
 
 ## Pairing controller
 - For DualShock PS4 controller, press and hold both the Share and PS buttons.
