@@ -10,10 +10,10 @@ import os
 import pandas as pd
 from torchvision import transforms
 
-samples_per_row = 5
-rows_per_page = 7
-sample_height = 120
-sample_width = 160*2
+samples_per_row = 4
+rows_per_page = 6
+sample_height = 150
+sample_width = 200*2
 
 class HandoverSwitch(IntEnum):
     GivingToReceiving=0
