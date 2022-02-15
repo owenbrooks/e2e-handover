@@ -17,11 +17,11 @@ Pressing 'r' begins or ends a recording session, identified by a timestamp. Imag
 Optionally, record the raw ROS messages with `rosbag record rosout /camera/color/image_raw robotiq_ft_wrench Robotiq2FGripperRobotInput /Robotiq2FGripperRobotOutput`
 
 ## Data preparation
-`python3 src/e2e_handover/prepare/calibrate_forces.py --data raw.csv`
-`python3 src/e2e_handover/prepare/combine_sets.py --data data/2022-02-09-0*rhys/*_calib.csv --out data/2022-02-09-05_rhys/2022-02-09-05_calib_rhys.csv`
-`python3 src/e2e_handover/prepare/grip_labeller.py --data data/2022-02-09-05_rhys/2022-02-09-05_calib_rhys.csv`
-`python3 src/e2e_handover/prepare/annotate_direction.py --data data/2022-02-09-05_rhys/2022-02-09-05_rhys_calib_labelled.csv.csv`
-`python3 src/e2e_handover/prepare/use_future.py --data data/2022-02-08-03\:41\:24_owen/2022-02-08-03\:41\:24_calib_labelled_receive.csv --offset 5`
+1. `python3 src/e2e_handover/prepare/calibrate_forces.py --data raw.csv`
+2. `python3 src/e2e_handover/prepare/combine_sets.py --data data/2022-02-09-0*rhys/*_calib.csv --out data/2022-02-09-05_rhys/2022-02-09-05_calib_rhys.csv`
+3. `python3 src/e2e_handover/prepare/grip_labeller.py --data data/2022-02-09-05_rhys/2022-02-09-05_calib_rhys.csv`
+4. `python3 src/e2e_handover/prepare/annotate_direction.py --data data/2022-02-09-05_rhys/2022-02-09-05_rhys_calib_labelled.csv.csv`
+5. `python3 src/e2e_handover/prepare/use_future.py --data data/2022-02-08-03\:41\:24_owen/2022-02-08-03\:41\:24_calib_labelled_receive.csv --offset 5`
 
 ## Training
 

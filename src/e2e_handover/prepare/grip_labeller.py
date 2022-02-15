@@ -2,6 +2,7 @@ import argparse
 import cv2
 from collections import namedtuple
 from enum import IntEnum
+
 from e2e_handover.train.dataset import DeepHandoverDataset
 import numpy as np
 import os
@@ -21,11 +22,11 @@ class GripperLabel(IntEnum):
         else:
             return "closed"
 
-def main(data_file):
+def main(data_file, use_two_cams):
     params =  {
         'data_file': data_file,
         'use_rgb_1': True,
-        'use_rgb_2': True,
+        'use_rgb_2': use_two_cams,
         'use_depth_1': False,
         'use_depth_2': False,
         'use_segmentation': False,
@@ -43,15 +44,21 @@ def main(data_file):
     manual_open_labels = np.zeros(len(viewing_dataset)) # stores GripperLabels
     current_gripper_mode = GripperLabel.Unchanged
 
-    image_height, image_width = 480, 640*2
+    image_height, image_width = 480, 640
+    if use_two_cams:
+        image_width *= 2
     
     index = 0
     while True:
         sample = viewing_dataset[index]
 
-        image_rgb_1 = sample['image'][0:3, :, :]
-        image_rgb_2 = sample['image'][3:6, :, :].numpy()[:, ::-1, ::-1] # Flip camera 2 as it is easier to see image upside down
-        img = np.concatenate((image_rgb_1, image_rgb_2), axis=2).transpose(1, 2, 0)[:, :, ::-1].copy()
+        image_rgb_1 = sample['image']
+
+        if use_two_cams:
+            image_rgb_2 = sample['image'][3:6, :, :].numpy()[:, ::-1, ::-1] # Flip camera 2 as it is easier to see image upside down
+            img = np.concatenate((image_rgb_1, image_rgb_2), axis=2).transpose(1, 2, 0)[:, :, ::-1].copy()
+        else:
+            img = image_rgb_1.numpy().transpose(1, 2, 0)[:, :, ::-1].copy()
 
         image_number_string = str(index) + '/' + str(len(viewing_dataset))
         cv2.putText(img, image_number_string, (0, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
@@ -125,6 +132,7 @@ def save_labels(manual_open_labels, data_file):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', type=str, help='path of csv file to run on e.g. data/2021-12-09-04:56:05/raw.csv')
+    parser.add_argument('--double-camera', action='store_true', help='use two camera views')
     args = parser.parse_args()
 
-    main(args.data)
+    main(args.data, args.double_camera)
