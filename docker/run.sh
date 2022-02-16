@@ -42,6 +42,7 @@ run_without_gpu()
 
 build_image() 
 {
+    echo "Building docker image $IMAGE_NAME from $DOCKER_FILE"
     docker build . -t $IMAGE_NAME -f $DOCKER_FILE
 }
 
