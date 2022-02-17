@@ -25,12 +25,23 @@ def main(params, model_path):
 
     # Load dataset
     dataset = DeepHandoverDataset(params)
-    train_length = int(len(dataset)*(1.0-params.test_fraction))
-    test_length = len(dataset) - train_length
-    _, test_data = random_split(dataset, [train_length, test_length], generator=torch.Generator().manual_seed(42))
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, num_workers=4, pin_memory=True)
+     # Split between test, validation and train
+    train_length = int(len(dataset)*(1.0-params.val_fraction-params.test_fraction))
+    val_length = int(len(dataset)*params.val_fraction)
+    test_length = int(len(dataset)-train_length-val_length)
 
-    ground_truth_open = np.zeros(test_length, dtype=bool)
+    if params.use_lstm: # Perform a time-series split, not random
+        # train_data = torch.utils.data.Subset(dataset, range(0, train_length))
+        # val_data = torch.utils.data.Subset(dataset, range(train_length, train_length+val_length))
+        test_data = torch.utils.data.Subset(dataset, range(train_length+val_length, len(dataset)))
+    else:
+        train_data, val_data, test_data = random_split(dataset, [train_length, val_length, test_length], generator=torch.Generator().manual_seed(42))
+
+    # train_loader = torch.utils.data.DataLoader(train_data, batch_size=params.batch_size, shuffle=True, num_workers=params.num_workers, pin_memory=True)
+    # val_loader = torch.utils.data.DataLoader(val_data, batch_size=params.batch_size, shuffle=True, num_workers=params.num_workers, pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=params.batch_size, shuffle=False, num_workers=params.num_workers, pin_memory=True)
+
+    ground_truth_open = np.zeros(len(test_data), dtype=bool)
     model_open = np.zeros_like(ground_truth_open)
 
     # Perform inference on all test images
@@ -49,12 +60,13 @@ def main(params, model_path):
 
             # forward + backward + optimize
             outputs = net(input_img, input_forces)
-            pred_gripstate = outputs[:, 0].unsqueeze(1)
+            pred_gripstate = outputs[:, 0]
 
-            model_open[i] = pred_gripstate.cpu().data.numpy() > 0.5
-            ground_truth_open[i] = target_gripstate.cpu().data.numpy()
+            output_thresh = pred_gripstate.cpu().data.numpy() > 0.5
+            model_open[i*params.batch_size:min((i+1)*params.batch_size, len(ground_truth_open))] = output_thresh
+            ground_truth_open[i*params.batch_size:min((i+1)*params.batch_size, len(ground_truth_open))] = target_gripstate.cpu().data.numpy().squeeze(1)
 
-            print(f"{i+1}/{test_length} complete")
+            print(f"{min((i+1)*params.batch_size, len(ground_truth_open))}/{len(test_data)} complete")
 
     # Calculate statistics
     correct_count = np.count_nonzero(model_open == ground_truth_open)

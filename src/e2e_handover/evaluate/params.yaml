@@ -1,17 +1,18 @@
 
 model_directory: '../../../models'
 
-num_epochs: 100
+num_epochs: 50
 batch_size: 32
 learning_rate: 0.001
 num_workers: 4
 log_step: 10 # step size for printing log info
 frame_skip: 1 # will train only on every nth frame
-test_fraction: 0.2
+val_fraction: 0.15
+test_fraction: 0.15
 
 use_rgb_1: True
 use_rgb_2: False
-use_depth_1: False
+use_depth_1: True
 use_depth_2: False
 use_tactile: False
 use_force_torque: True
