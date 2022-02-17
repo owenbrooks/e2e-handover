@@ -11,7 +11,7 @@
     <param name="serial_id" value="ttyUSB1" />
   </node>
   <node name="Robotiq2FGripperRtuNode" pkg="robotiq_2f_gripper_control" type="Robotiq2FGripperRtuNode.py" args="/dev/ttyUSB0" output="screen"/>
-  <include file="$(find realsense2_camera)/launch/rs_multiple_devices.launch">
+  <include file="$(find e2e_handover)/launch/rs_multiple_devices_aligned.launch">
     <arg name="serial_no_camera1" value="141722072409"/>
     <arg name="serial_no_camera2" value="815412070589"/>
   </include>
