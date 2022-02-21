@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Performs canned handover motion
 import moveit_commander
 import numpy as np
@@ -8,6 +9,7 @@ import sys
 import rospy
 from moveit_msgs.msg import RobotTrajectory
 from moveit_msgs.msg import MoveItErrorCodes
+from std_srvs.srv import Trigger, TriggerResponse
 
 # Plan method from moveit, modified so that it can accept a list of joint angles without triggering a bug
 # http://docs.ros.org/en/noetic/api/moveit_commander/html/move__group_8py_source.html#l00613 
@@ -34,6 +36,7 @@ def plan(self, joints=None):
 
 class Mover():
     def __init__(self):
+        rospy.init_node("mover")
         moveit_commander.roscpp_initialize(sys.argv)
 
         self.robot = moveit_commander.RobotCommander()
@@ -46,13 +49,14 @@ class Mover():
         
         self.setup_plan = None
         self.reach_plan = None
-        self.return_plan = None
+        self.retract_plan = None
 
         rospack = rospkg.RosPack()
         package_dir = rospack.get_path('e2e_handover')
         self.setup_plan_path = os.path.join(package_dir, 'saved_trajectories', 'setup_plan.p')
         self.reach_plan_path = os.path.join(package_dir, 'saved_trajectories', 'reach_plan.p')
-        self.return_plan_path = os.path.join(package_dir, 'saved_trajectories', 'return_plan.p')
+        self.retract_plan_path = os.path.join(package_dir, 'saved_trajectories', 'retract_plan.p')
+        rospy.loginfo("Started")
 
         load_success = self.load_plans()
         if not load_success:
@@ -61,16 +65,21 @@ class Mover():
                 print("Unable to execute without a plan. Exiting.")
                 sys.exit()
 
-        self.setup()
+        # Set up ROS services
+        self.setup_srv = rospy.Service("~setup", Trigger, self.setup)
+        self.reach_srv = rospy.Service("~reach", Trigger, self.reach)
+        self.retract_srv = rospy.Service("~retract", Trigger, self.retract)
+
 
     def load_plans(self) -> bool:
+        rospy.loginfo(self.setup_plan_path)
         try:
             with open(self.setup_plan_path, 'rb') as setup_plan_file:
                 self.setup_plan = pickle.load(setup_plan_file)
             with open(self.reach_plan_path, 'rb') as reach_plan_file:
                 self.reach_plan = pickle.load(reach_plan_file)
-            with open(self.return_plan_path, 'rb') as return_plan_file:
-                self.return_plan = pickle.load(return_plan_file)
+            with open(self.retract_plan_path, 'rb') as retract_plan_file:
+                self.retract_plan = pickle.load(retract_plan_file)
         except FileNotFoundError:
             return False
         return True
@@ -103,37 +112,43 @@ class Mover():
             with open(self.reach_plan_path, 'wb') as reach_plan_file:
                 pickle.dump(self.reach_plan, reach_plan_file)
         # extended->retracted
-        success, self.return_plan, _, _ = plan(self.move_group, self.retracted_goal_joint_position)
+        success, self.retract_plan, _, _ = plan(self.move_group, self.retracted_goal_joint_position)
         if not success:
             return False
-        print("Displaying return plan. Execute? (y/n)")
+        print("Displaying retract plan. Execute? (y/n)")
         should_execute = said_yes()
         if should_execute:
-            self.move_group.execute(self.return_plan, wait=True)        
-            with open(self.return_plan_path, 'wb') as return_plan_file:
-                pickle.dump(self.return_plan, return_plan_file)
+            self.move_group.execute(self.retract_plan, wait=True)        
+            with open(self.retract_plan_path, 'wb') as retract_plan_file:
+                pickle.dump(self.retract_plan, retract_plan_file)
 
         print("Saved plans.")
 
         return True
             
-    def setup(self):
+    def setup(self, msg):
         rospy.loginfo("Setting up")
         success = self.move_group.execute(self.setup_plan, wait=True)
         if not success:
             rospy.logerr("Error executing setup plan. Make sure robot is in home position.")
 
-    def reach(self):
+        return TriggerResponse(success=success, message="")
+
+    def reach(self, msg):
         rospy.loginfo("Reaching")
         success = self.move_group.execute(self.reach_plan, wait=True)
         if not success:
             rospy.logerr("Error executing setup plan. Make sure robot is in home position.")
 
-    def retract(self):
+        return TriggerResponse(success=success, message="")
+
+    def retract(self, msg):
         rospy.loginfo("Retracting")
-        success = self.move_group.execute(self.return_plan, wait=True) 
+        success = self.move_group.execute(self.retract_plan, wait=True) 
         if not success:
             rospy.logerr("Error executing setup plan. Make sure robot is in home position.")
+
+        return TriggerResponse(success=success, message="")
 
 def said_yes() -> bool:
     response = input().lower().strip()
@@ -143,3 +158,10 @@ def said_yes() -> bool:
         elif response[0] == 'n':
             return False
     return False
+
+if __name__ == "__main__":
+    try: 
+        mover = Mover()
+        rospy.spin()
+    except KeyboardInterrupt:
+        pass

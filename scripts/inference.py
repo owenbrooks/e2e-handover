@@ -2,7 +2,6 @@
 from collections import namedtuple
 from e2e_handover.gripper import ObjDetection, obj_msg_to_enum, open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
 from e2e_handover.image_ops import prepare_image
-from e2e_handover.mover import Mover
 from e2e_handover.train.model_double import MultiViewResNet
 from enum import Enum
 from numpy.core.numeric import NaN
@@ -48,7 +47,6 @@ class HandoverNode():
 
         inference_params = rospy.get_param('~inference')
         self.sensor_manager = SensorManager(inference_params['giving']) # TODO feed in a combination of both to get all sensors
-        self.mover = Mover()
         self.motion_state = MotionState.INITIALISING
 
         self.gripper_sub = rospy.Subscriber('/Robotiq2FGripperRobotInput', inputMsg.Robotiq2FGripper_robot_input, self.gripper_state_callback)
@@ -180,13 +178,13 @@ class HandoverNode():
         
         if curr_mover == MotionState.RETRACTED and next_mover == MotionState.REACHING:
             self.motion_state = MotionState.REACHING
-            self.mover.reach()
+            # TODO: update self.mover.reach()
             self.motion_state = MotionState.EXTENDED
             self.toggle_inference(set_on=True)
         elif curr_mover == MotionState.EXTENDED and next_mover == MotionState.RETURNING:
             self.toggle_inference(set_on=False)
             self.motion_state = MotionState.RETURNING
-            self.mover.retract()
+            #TODO: fix self.mover.retract()
             self.motion_state = MotionState.RETRACTED
 
             # Switch from giving to receiving or vice versa
