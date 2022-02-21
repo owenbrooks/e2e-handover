@@ -149,31 +149,31 @@ class HandoverNode():
         next_state = self.current_gripper_state
 
         if self.current_gripper_state == GripState.HOLDING:
-            if toggle_key_pressed or self.model_output > MODEL_THRESHOLD:
+            if toggle_key_pressed or self.model_output > MODEL_THRESHOLD or self.in_simulation:
                 next_state = GripState.RELEASING
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
-                if self.params.use_tactile:
+                if self.params.giving['use_tactile'] or self.params.receiving['use_tactile']:
                     self.sensor_manager.contactile_bias_srv()
         elif self.current_gripper_state == GripState.WAITING:
-            if toggle_key_pressed or self.model_output < MODEL_THRESHOLD:
+            if toggle_key_pressed or self.model_output < MODEL_THRESHOLD or self.in_simulation:
                 next_state = GripState.GRABBING
                 # close gripper
                 grip_cmd = close_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
         elif self.current_gripper_state == GripState.GRABBING:
-            if self.obj_det_state == ObjDetection.CLOSING_STOPPED:
+            if self.obj_det_state == ObjDetection.CLOSING_STOPPED or self.in_simulation:
                 next_state = GripState.HOLDING
             elif self.obj_det_state == ObjDetection.FINISHED_MOTION:
                 next_state = GripState.RELEASING
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
-                if self.params.use_tactile:
+                if self.params.giving['use_tactile'] or self.params.receiving['use_tactile']:
                     self.sensor_manager.contactile_bias_srv()
         elif self.current_gripper_state == GripState.RELEASING:
-            if self.obj_det_state == ObjDetection.FINISHED_MOTION:
+            if self.obj_det_state == ObjDetection.FINISHED_MOTION or self.in_simulation:
                 next_state = GripState.WAITING
 
         return next_state
@@ -181,7 +181,7 @@ class HandoverNode():
     def transition_state(self, curr_handover, next_handover, curr_mover, next_mover):
         self.handover_state = next_handover
         
-        if (curr_mover == MotionState.RETRACTED) and next_mover == MotionState.REACHING:
+        if curr_mover == MotionState.RETRACTED and next_mover == MotionState.REACHING:
             self.motion_state = MotionState.REACHING
             self.mover_reach()
             self.motion_state = MotionState.EXTENDED
@@ -240,7 +240,7 @@ class HandoverNode():
             next_handover_state, next_motion_state = compute_handover_and_motion_states(self.handover_state, self.motion_state, next_gripper_state, retracted_time, self.wait_time_threshold)
             self.transition_state(self.handover_state, next_handover_state, self.motion_state, next_motion_state)
             
-            rospy.loginfo(f"infer: {self.is_inference_active}, out: {self.model_output: .4f}, {self.obj_det_state}, {self.current_gripper_state}, {self.motion_state}, ret_time: {retracted_time}", )
+            rospy.loginfo(f"infer: {self.is_inference_active}, out: {self.model_output: .4f}, {self.obj_det_state}, {self.current_gripper_state}, {self.motion_state}, {self.handover_state}, ret_time: {retracted_time}", )
             rate.sleep()
 
 
@@ -257,7 +257,7 @@ def compute_handover_and_motion_states(curr_handover, curr_motion, next_gripper,
         if received or released:
             next_motion = MotionState.RETURNING
 
-    return next_motion, next_handover
+    return next_handover, next_motion
 
 if __name__ == "__main__":
     try: 
