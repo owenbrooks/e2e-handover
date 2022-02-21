@@ -12,6 +12,7 @@ from sensor_msgs.msg import Joy
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 import rospkg
 import rospy
+from std_srvs.srv import Trigger
 import torch
 
 # Node to perform inference given a trained model
@@ -46,6 +47,7 @@ class HandoverNode():
         rospy.init_node("inference")
 
         inference_params = rospy.get_param('~inference')
+        self.in_simulation = rospy.get_param('~in_simulation')
         self.sensor_manager = SensorManager(inference_params['giving']) # TODO feed in a combination of both to get all sensors
         self.motion_state = MotionState.INITIALISING
 
@@ -58,6 +60,9 @@ class HandoverNode():
         self.handover_state = HandoverState.RECEIVING
         self.toggle_key_pressed = False
 
+        self.mover_setup = rospy.ServiceProxy('/mover/setup', Trigger)
+        self.mover_reach = rospy.ServiceProxy('/mover/reach', Trigger)
+        self.mover_retract = rospy.ServiceProxy('/mover/retract', Trigger)
         self.last_retracted = rospy.get_time()
         self.wait_time_threshold = 2.0 # time to wait before reaching out after having retracted. in seconds
 
@@ -151,7 +156,7 @@ class HandoverNode():
                 self.gripper_pub.publish(grip_cmd)
                 if self.params.use_tactile:
                     self.sensor_manager.contactile_bias_srv()
-        elif self.current_state == GripState.WAITING:
+        elif self.current_gripper_state == GripState.WAITING:
             if toggle_key_pressed or self.model_output < MODEL_THRESHOLD:
                 next_state = GripState.GRABBING
                 # close gripper
@@ -167,7 +172,7 @@ class HandoverNode():
                 self.gripper_pub.publish(grip_cmd)
                 if self.params.use_tactile:
                     self.sensor_manager.contactile_bias_srv()
-        elif self.current_state == GripState.RELEASING:
+        elif self.current_gripper_state == GripState.RELEASING:
             if self.obj_det_state == ObjDetection.FINISHED_MOTION:
                 next_state = GripState.WAITING
 
@@ -176,15 +181,15 @@ class HandoverNode():
     def transition_state(self, curr_handover, next_handover, curr_mover, next_mover):
         self.handover_state = next_handover
         
-        if curr_mover == MotionState.RETRACTED and next_mover == MotionState.REACHING:
+        if (curr_mover == MotionState.RETRACTED) and next_mover == MotionState.REACHING:
             self.motion_state = MotionState.REACHING
-            # TODO: update self.mover.reach()
+            self.mover_reach()
             self.motion_state = MotionState.EXTENDED
             self.toggle_inference(set_on=True)
-        elif curr_mover == MotionState.EXTENDED and next_mover == MotionState.RETURNING:
+        elif (curr_mover == MotionState.EXTENDED or curr_mover == MotionState.INITIALISING) and next_mover == MotionState.RETURNING:
             self.toggle_inference(set_on=False)
             self.motion_state = MotionState.RETURNING
-            #TODO: fix self.mover.retract()
+            self.mover_retract()
             self.motion_state = MotionState.RETRACTED
 
             # Switch from giving to receiving or vice versa
@@ -199,18 +204,24 @@ class HandoverNode():
         rospy.loginfo("Running inference node")
         rate = rospy.Rate(10)
 
-        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-            rospy.loginfo("Waiting for gripper to connect")
-            rate.sleep()
+        # Wait to start until robot is sent to position and gripper is connected
+        rospy.loginfo("Waiting for mover to be ready to send robot to position...")
+        rospy.wait_for_service('/mover/setup')
+        self.mover_setup()
+        self.transition_state(self.handover_state, self.handover_state, self.motion_state, MotionState.RETURNING)
+        if not self.in_simulation: # don't wait for gripper if simulated, since there isn't a gripper in gazebo
+            while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+                rospy.loginfo("Waiting for gripper to connect...")
+                rate.sleep()
 
-        # initialise the gripper via reset and activate messages
+        # Initialise the gripper via reset and activate messages
         grip_cmd = reset_gripper_msg()
         self.gripper_pub.publish(grip_cmd)
         rospy.sleep(0.1)
         grip_cmd = activate_gripper_msg()
         self.gripper_pub.publish(grip_cmd)
 
-        # keyboard input
+        # Setup keyboard input
         key_listener = keyboard.Listener(on_press=self.on_key_press)
         key_listener.start()
         
@@ -225,12 +236,11 @@ class HandoverNode():
                 self.current_gripper_state = next_gripper_state
 
             # Spin state machine that determines arm motion and inference model to use
-            retracted_time = self.last_retracted - rospy.get_time()
+            retracted_time = rospy.get_time() - self.last_retracted
             next_handover_state, next_motion_state = compute_handover_and_motion_states(self.handover_state, self.motion_state, next_gripper_state, retracted_time, self.wait_time_threshold)
             self.transition_state(self.handover_state, next_handover_state, self.motion_state, next_motion_state)
             
-            rospy.loginfo(f"infer: {self.is_inference_active}, out: %.4f, {self.obj_det_state}, {self.current_gripper_state}", self.model_output)
-
+            rospy.loginfo(f"infer: {self.is_inference_active}, out: {self.model_output: .4f}, {self.obj_det_state}, {self.current_gripper_state}, {self.motion_state}, ret_time: {retracted_time}", )
             rate.sleep()
 
 

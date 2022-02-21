@@ -140,6 +140,9 @@ roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch sim:=true
 rviz -d launch/e2e_handover.rviz
 roslaunch e2e_handover inference.launch```
 
+roslaunch ur_gazebo ur5_bringup.launch
+roslaunch e2e_handover sim_position.launch
+
 Running position node in gazebo
 
 - `roslaunch e2e_handover position.launch`

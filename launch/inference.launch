@@ -1,8 +1,10 @@
 <?xml version="1.0"?>
 <launch>
+  <arg name="sim" default="false" /> <!-- Set this to true when running in gazebo -->
   <rosparam command="load" file="$(find e2e_handover)/param/handover_params.yaml" />
   <node name="inference" pkg="e2e_handover" type="inference.py" output="screen">
       <rosparam command="load" file="$(find e2e_handover)/param/handover_params.yaml" />
+      <param name="in_simulation" value="$(arg sim)" />
   </node>
   <node name="rq_sensor" pkg="robotiq_ft_sensor" type="rq_sensor" output="screen">
     <param name="serial_id" value="ttyUSB1" />
@@ -12,6 +14,7 @@
     <arg name="serial_no_camera1" value="141722072409"/>
     <arg name="serial_no_camera2" value="815412070589"/>
   </include>
+  <node name="mover" pkg="e2e_handover" type="mover.py" />
   <!-- <include file="$(find ur_robot_driver)/launch/ur5_bringup.launch" pass_all_args="true">
       <arg name="robot_ip" value="10.0.0.2"/>
   </include>
