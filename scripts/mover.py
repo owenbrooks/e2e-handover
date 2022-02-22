@@ -129,26 +129,29 @@ class Mover():
     def setup(self, msg):
         rospy.loginfo("Setting up")
         success = self.move_group.execute(self.setup_plan, wait=True)
+        message = ""
         if not success:
-            rospy.logerr("Error executing setup plan. Make sure robot is in home position.")
+            message = "Error executing setup plan. Make sure robot is in home position."
 
-        return TriggerResponse(success=success, message="")
+        return TriggerResponse(success=success, message=message)
 
     def reach(self, msg):
         rospy.loginfo("Reaching")
         success = self.move_group.execute(self.reach_plan, wait=True)
+        message = ""
         if not success:
-            rospy.logerr("Error executing reach plan. Make sure robot is in home position.")
+            message = "Error executing reach plan. Make sure robot is in home position."
 
-        return TriggerResponse(success=success, message="")
+        return TriggerResponse(success=success, message=message)
 
     def retract(self, msg):
         rospy.loginfo("Retracting")
-        success = self.move_group.execute(self.retract_plan, wait=True) 
+        success = self.move_group.execute(self.retract_plan, wait=True)
+        message = "" 
         if not success:
-            rospy.logerr("Error executing retract plan. Make sure robot is in home position.")
+            message = "Error executing retract plan. Make sure robot is in home position."
 
-        return TriggerResponse(success=success, message="")
+        return TriggerResponse(success=success, message=message)
 
 def said_yes() -> bool:
     response = input().lower().strip()

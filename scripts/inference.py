@@ -68,6 +68,7 @@ class HandoverNode():
         self.wait_time_threshold = 2.0 # time to wait before reaching out after having retracted. in seconds
 
         self.is_inference_active = False
+        self.net = None
 
         # Determine model paths
         self.model_paths = {}
@@ -84,12 +85,22 @@ class HandoverNode():
 
     def spin_inference(self):
         # TODO: feed correct sensor data to model according to handover_params.yaml
+        action_string = 'giving' if self.handover_state == HandoverState.GIVING else 'receiving'
         if self.is_inference_active and self.sensor_manager.sensors_ready() and self.net is not None:
-            img_rgb_1 = self.sensor_manager.img_rgb_1[:, :, ::-1]
-            img_rgb_1_t = prepare_image(img_rgb_1).unsqueeze_(0).to(self.device)
+
             forces_t = torch.autograd.Variable(torch.FloatTensor(self.sensor_manager.calib_wrench_array)).unsqueeze_(0).to(self.device)
 
-            output_t = self.net(img_rgb_1_t, forces_t)
+            img_rgb_1 = self.sensor_manager.img_rgb_1[:, :, ::-1]
+            img_rgb_1_t = prepare_image(img_rgb_1).to(self.device)
+
+            if self.params[action_string].use_rgb_2:
+                img_rgb_2 = self.sensor_manager.img_rgb_2[:, :, ::-1]
+                img_rgb_2_t = prepare_image(img_rgb_2).to(self.device)
+                stacked_image_t = torch.cat([img_rgb_1_t, img_rgb_2_t], 0).unsqueeze(0) # concatenates into signal tensor with number of channels = sum of channels of each tensor
+                output_t = self.net(stacked_image_t, forces_t)
+            else:
+                output_t = self.net(img_rgb_1_t, forces_t)
+
             self.model_output = output_t.cpu().detach().numpy()[0][0]
 
     def gripper_state_callback(self, gripper_input_msg):
@@ -221,9 +232,9 @@ class HandoverNode():
             self.last_retracted = rospy.get_time()
             self.motion_state = MotionState.RETRACTED
         else:
-            rospy.logerr("Movement unsuccessful")
+            rospy.logerr(f"Movement unsuccessful: {response.message}")
             sys.exit()
-        # self.transition_state(self.handover_state, self.handover_state, self.motion_state, MotionState.RETURNING)
+
         if not self.in_simulation: # don't wait for gripper if simulated, since there isn't a gripper in gazebo
             while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
                 rospy.loginfo("Waiting for gripper to connect...")

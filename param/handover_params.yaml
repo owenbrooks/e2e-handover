@@ -12,9 +12,9 @@ recording:
 
 inference:
   giving:
-    model_file: 'models/model_2022-02-08-04:24:25_receiving_rgb1_force/model_2022-02-08-04:24:25_receiving_rgb1_force_best.pt' # relative to package.xml
+    model_file: 'models/model_2022-02-16-04:27:48_rgb1_rgb2_force_misty-leaf-202_combined_give_best.pt' # relative to package.xml
     use_rgb_1: True
-    use_rgb_2: False
+    use_rgb_2: True
     use_depth_1: False
     use_depth_2: False
     use_force: True
@@ -23,9 +23,9 @@ inference:
     use_segmentation: False
     output_velocity: False
   receiving:
-    model_file: 'models/model_2022-02-08-04:24:25_receiving_rgb1_force/model_2022-02-08-04:24:25_receiving_rgb1_force_best.pt' # relative to package.xml
+    model_file: 'models/model_2022-02-22-01:43:57_rgb1_rgb2_force_skilled-meadow-204_combined_receive_best.pt' # relative to package.xml
     use_rgb_1: True
-    use_rgb_2: False
+    use_rgb_2: True
     use_depth_1: False
     use_depth_2: False
     use_force: True
