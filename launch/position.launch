@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-    <node name="position" pkg="e2e_handover" type="position" output="screen" />
+    <!-- <node name="position" pkg="e2e_handover" type="position" output="screen" /> -->
     <include file="$(find ur_robot_driver)/launch/ur5_bringup.launch" pass_all_args="true">
         <arg name="robot_ip" value="10.0.0.2"/>
     </include>

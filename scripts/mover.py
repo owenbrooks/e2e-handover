@@ -138,7 +138,7 @@ class Mover():
         rospy.loginfo("Reaching")
         success = self.move_group.execute(self.reach_plan, wait=True)
         if not success:
-            rospy.logerr("Error executing setup plan. Make sure robot is in home position.")
+            rospy.logerr("Error executing reach plan. Make sure robot is in home position.")
 
         return TriggerResponse(success=success, message="")
 
@@ -146,7 +146,7 @@ class Mover():
         rospy.loginfo("Retracting")
         success = self.move_group.execute(self.retract_plan, wait=True) 
         if not success:
-            rospy.logerr("Error executing setup plan. Make sure robot is in home position.")
+            rospy.logerr("Error executing retract plan. Make sure robot is in home position.")
 
         return TriggerResponse(success=success, message="")
 

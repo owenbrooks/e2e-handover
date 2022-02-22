@@ -13,6 +13,7 @@ from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as out
 import rospkg
 import rospy
 from std_srvs.srv import Trigger
+import sys
 import torch
 
 # Node to perform inference given a trained model
@@ -70,9 +71,10 @@ class HandoverNode():
 
         # Determine model paths
         self.model_paths = {}
+        self.params = {}
         for action_string in ['giving', 'receiving']:
             model_file = inference_params[action_string]['model_file']
-            self.params = namedtuple("Params", inference_params.keys())(*inference_params.values())
+            self.params[action_string] = namedtuple("Params", inference_params[action_string].keys())(*inference_params[action_string].values())
             rospack = rospkg.RosPack()
             package_dir = rospack.get_path('e2e_handover')
             self.model_paths[action_string] = os.path.join(package_dir, model_file)
@@ -124,9 +126,10 @@ class HandoverNode():
             self.load_model()
 
     def load_model(self):
-        model_path = self.model_paths['giving'] if self.handover_state == HandoverState.GIVING else self.model_paths['receiving']
+        action_string = 'giving' if self.handover_state == HandoverState.GIVING else 'receiving'
+        model_path = self.model_paths[action_string]
         if os.path.isfile(model_path):
-            self.net = MultiViewResNet(self.params)
+            self.net = MultiViewResNet(self.params[action_string])
             self.net.load_state_dict(torch.load(model_path))
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             rospy.loginfo("Using device: " + str(self.device))
@@ -154,7 +157,7 @@ class HandoverNode():
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
-                if self.params.giving['use_tactile'] or self.params.receiving['use_tactile']:
+                if self.params['giving'].use_tactile or self.params['receiving'].use_tactile:
                     self.sensor_manager.contactile_bias_srv()
         elif self.current_gripper_state == GripState.WAITING:
             if toggle_key_pressed or self.model_output < MODEL_THRESHOLD or self.in_simulation:
@@ -170,7 +173,7 @@ class HandoverNode():
                 # open gripper
                 grip_cmd = open_gripper_msg()
                 self.gripper_pub.publish(grip_cmd)
-                if self.params.giving['use_tactile'] or self.params.receiving['use_tactile']:
+                if self.params['giving'].use_tactile or self.params['receiving'].use_tactile:
                     self.sensor_manager.contactile_bias_srv()
         elif self.current_gripper_state == GripState.RELEASING:
             if self.obj_det_state == ObjDetection.FINISHED_MOTION or self.in_simulation:
@@ -183,13 +186,19 @@ class HandoverNode():
         
         if curr_mover == MotionState.RETRACTED and next_mover == MotionState.REACHING:
             self.motion_state = MotionState.REACHING
-            self.mover_reach()
+            response = self.mover_reach()
+            if not response.success:
+                rospy.logerr("Movement unsuccessful")
+                sys.exit()
             self.motion_state = MotionState.EXTENDED
             self.toggle_inference(set_on=True)
         elif (curr_mover == MotionState.EXTENDED or curr_mover == MotionState.INITIALISING) and next_mover == MotionState.RETURNING:
             self.toggle_inference(set_on=False)
             self.motion_state = MotionState.RETURNING
-            self.mover_retract()
+            response = self.mover_retract()
+            if not response.success:
+                rospy.logerr("Movement unsuccessful")
+                sys.exit()
             self.motion_state = MotionState.RETRACTED
 
             # Switch from giving to receiving or vice versa
@@ -207,8 +216,14 @@ class HandoverNode():
         # Wait to start until robot is sent to position and gripper is connected
         rospy.loginfo("Waiting for mover to be ready to send robot to position...")
         rospy.wait_for_service('/mover/setup')
-        self.mover_setup()
-        self.transition_state(self.handover_state, self.handover_state, self.motion_state, MotionState.RETURNING)
+        response = self.mover_setup()
+        if response.success:
+            self.last_retracted = rospy.get_time()
+            self.motion_state = MotionState.RETRACTED
+        else:
+            rospy.logerr("Movement unsuccessful")
+            sys.exit()
+        # self.transition_state(self.handover_state, self.handover_state, self.motion_state, MotionState.RETURNING)
         if not self.in_simulation: # don't wait for gripper if simulated, since there isn't a gripper in gazebo
             while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
                 rospy.loginfo("Waiting for gripper to connect...")
@@ -238,9 +253,9 @@ class HandoverNode():
             # Spin state machine that determines arm motion and inference model to use
             retracted_time = rospy.get_time() - self.last_retracted
             next_handover_state, next_motion_state = compute_handover_and_motion_states(self.handover_state, self.motion_state, next_gripper_state, retracted_time, self.wait_time_threshold)
+            rospy.loginfo(f"infer: {self.is_inference_active}, out: {self.model_output: .4f}, {self.obj_det_state}, {self.current_gripper_state}, {self.motion_state}, {self.handover_state}, ret_time: {retracted_time}", )
             self.transition_state(self.handover_state, next_handover_state, self.motion_state, next_motion_state)
             
-            rospy.loginfo(f"infer: {self.is_inference_active}, out: {self.model_output: .4f}, {self.obj_det_state}, {self.current_gripper_state}, {self.motion_state}, {self.handover_state}, ret_time: {retracted_time}", )
             rate.sleep()
 
 
