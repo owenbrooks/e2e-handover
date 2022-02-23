@@ -22,6 +22,7 @@ inference:
     use_lstm: False
     use_segmentation: False
     output_velocity: False
+    retract_after: False
   receiving:
     model_file: 'models/model_2022-02-22-01:43:57_rgb1_rgb2_force_skilled-meadow-204_combined_receive_best.pt' # relative to package.xml
     use_rgb_1: True
@@ -33,4 +34,5 @@ inference:
     use_lstm: False
     use_segmentation: False
     output_velocity: False
+    retract_after: True
   strict_movement: False

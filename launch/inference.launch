@@ -15,8 +15,8 @@
     <arg name="serial_no_camera2" value="815412070589"/>
   </include>
   <node name="mover" pkg="e2e_handover" type="mover.py" />
-  <!-- <include file="$(find ur_robot_driver)/launch/ur5_bringup.launch" pass_all_args="true">
+  <include file="$(find ur_robot_driver)/launch/ur5_bringup.launch" pass_all_args="true">
       <arg name="robot_ip" value="10.0.0.2"/>
   </include>
-  <include file="$(find ur5_moveit_config)/launch/ur5_moveit_planning_execution.launch" /> -->
+  <include file="$(find ur5_moveit_config)/launch/ur5_moveit_planning_execution.launch" />
 </launch>

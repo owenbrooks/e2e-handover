@@ -200,6 +200,7 @@ class HandoverNode():
 
     def transition_state(self, curr_handover, next_handover, curr_mover, next_mover):
         self.handover_state = next_handover
+        action_string = 'giving' if curr_handover == HandoverState.GIVING else 'receiving'
         
         if curr_mover == MotionState.RETRACTED and next_mover == MotionState.REACHING:
             self.motion_state = MotionState.REACHING
@@ -213,11 +214,12 @@ class HandoverNode():
         elif (curr_mover == MotionState.EXTENDED or curr_mover == MotionState.INITIALISING) and next_mover == MotionState.RETURNING:
             self.toggle_inference(set_on=False)
             self.motion_state = MotionState.RETURNING
-            response = self.mover_retract()
-            if not response.success:
-                rospy.logerr(f"Movement unsuccessful: {response.message}")
-                if self.strict_movement:
-                    sys.exit()
+            if self.params[action_string].retract_after:
+                response = self.mover_retract()
+                if not response.success:
+                    rospy.logerr(f"Movement unsuccessful: {response.message}")
+                    if self.strict_movement:
+                        sys.exit()
             self.motion_state = MotionState.RETRACTED
 
             # Switch from giving to receiving or vice versa
