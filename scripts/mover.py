@@ -44,7 +44,7 @@ class Mover():
         self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
 
         # base, shoulder, elbow, wrist1, wrist2, wrist3
-        self.retracted_goal_joint_position = list(np.deg2rad([90, -112, 124, -190, 50, 0])) # only used if there is no saved plan
+        self.retracted_goal_joint_position = list(np.deg2rad([90, -50, 100, -230, 0, 0])) # only used if there is no saved plan
         self.extended_goal_joint_position = list(np.deg2rad([90., -50., 100., -230., -90., 0.])) # only used if there is no saved plan
         
         self.setup_plan = None
