@@ -41,7 +41,8 @@ class MotionState(Enum):
     EXTENDED=3
     RETURNING=4
 
-MODEL_THRESHOLD = 0.5
+OPEN_THRESHOLD = 0.9
+CLOSE_THRESHOLD = 0.1
 
 class HandoverNode():
     def __init__(self):
@@ -166,7 +167,7 @@ class HandoverNode():
         next_state = self.current_gripper_state
 
         if self.current_gripper_state == GripState.HOLDING:
-            if toggle_key_pressed or self.model_output > MODEL_THRESHOLD or self.in_simulation:
+            if toggle_key_pressed or self.model_output > OPEN_THRESHOLD or self.in_simulation:
                 # pass
                 next_state = GripState.RELEASING
                 # open gripper
@@ -175,7 +176,7 @@ class HandoverNode():
                 if self.params['giving'].use_tactile or self.params['receiving'].use_tactile:
                     self.sensor_manager.contactile_bias_srv()
         elif self.current_gripper_state == GripState.WAITING:
-            if toggle_key_pressed or self.model_output < MODEL_THRESHOLD or self.in_simulation:
+            if toggle_key_pressed or self.model_output < CLOSE_THRESHOLD or self.in_simulation:
                 # pass
                 next_state = GripState.GRABBING
                 # close gripper
