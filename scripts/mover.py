@@ -140,7 +140,7 @@ class Mover():
         success = self.move_group.execute(self.reach_plan, wait=True)
         message = ""
         if not success:
-            message = "Error executing reach plan. Make sure robot is in home position."
+            message = "Error executing reach plan. Make sure robot is in retracted position."
 
         return TriggerResponse(success=success, message=message)
 
@@ -149,7 +149,7 @@ class Mover():
         success = self.move_group.execute(self.retract_plan, wait=True)
         message = "" 
         if not success:
-            message = "Error executing retract plan. Make sure robot is in home position."
+            message = "Error executing retract plan. Make sure robot is in extended position."
 
         return TriggerResponse(success=success, message=message)
 
