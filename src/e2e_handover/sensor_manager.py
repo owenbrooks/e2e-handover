@@ -61,7 +61,7 @@ class SensorManager():
         self.is_active = True
 
     def sensors_ready(self):
-        have_received = [
+        waiting_on_sensors = [
             ('rgb_1', self.use_rgb_1 and self.img_rgb_1 is None),
             ('rgb_2', self.use_rgb_2 and self.img_rgb_2 is None),
             ('depth_1', self.use_depth_1 and self.img_depth_1 is None),
@@ -70,7 +70,7 @@ class SensorManager():
             ('tactile', self.use_tactile and (self.tactile_1_readings is None or self.tactile_2_readings is None)),
         ]
 
-        remaining_sensor_names = [sensor[0] for sensor in have_received if sensor[1]]
+        remaining_sensor_names = [sensor[0] for sensor in waiting_on_sensors if sensor[1]]
         all_ready = len(remaining_sensor_names) == 0
         if not all_ready:
             rospy.logwarn(f"Waiting for: {remaining_sensor_names}")
