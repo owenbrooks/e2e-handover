@@ -71,16 +71,28 @@ class HandoverNode():
         self.net = None
         self.strict_movement = inference_params['strict_movement']
 
-        # Determine model paths
+        # Load network weights
         self.model_paths = {}
         self.params = {}
+        self.net_by_action = {}
         for action_string in ['giving', 'receiving']:
             model_file = inference_params[action_string]['model_file']
             self.params[action_string] = namedtuple("Params", inference_params[action_string].keys())(*inference_params[action_string].values())
             rospack = rospkg.RosPack()
             package_dir = rospack.get_path('e2e_handover')
-            self.model_paths[action_string] = os.path.join(package_dir, model_file)
-            rospy.loginfo(f"Using model: {self.model_paths[action_string]} for {action_string}")
+            model_path = os.path.join(package_dir, model_file)
+            rospy.loginfo(f"Using model: {model_path} for {action_string}")
+
+            if os.path.isfile(model_path):
+                self.net_by_action[action_string] = MultiViewResNet(self.params[action_string])
+                self.net_by_action[action_string].load_state_dict(torch.load(model_path))
+                self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+                rospy.loginfo("Using device: " + str(self.device))
+                self.net_by_action[action_string].to(self.device)
+                self.net_by_action[action_string].eval()
+            else:
+                self.net_by_action[action_string] = None
+                rospy.logerr(f"Unable to load model at {model_path}")
 
         self.model_output = NaN
 
@@ -137,22 +149,9 @@ class HandoverNode():
         else:
             self.sensor_manager.deactivate()
 
-        if set_on:
-            self.load_model()
-
-    def load_model(self):
-        action_string = 'giving' if self.handover_state == HandoverState.GIVING else 'receiving'
-        model_path = self.model_paths[action_string]
-        if os.path.isfile(model_path):
-            self.net = MultiViewResNet(self.params[action_string])
-            self.net.load_state_dict(torch.load(model_path))
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            rospy.loginfo("Using device: " + str(self.device))
-            self.net.to(self.device)
-            self.net.eval()
-        else:
-            self.net = None
-            rospy.logerr(f"Unable to load model at {model_path}")
+        if set_on: # load correct network for current handover action
+            action_string = 'giving' if self.handover_state == HandoverState.GIVING else 'receiving'
+            self.net = self.net_by_action[action_string]
 
     def on_key_press(self, key):
         try:
