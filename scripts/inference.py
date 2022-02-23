@@ -66,7 +66,7 @@ class HandoverNode():
         self.mover_reach = rospy.ServiceProxy('/mover/reach', Trigger)
         self.mover_retract = rospy.ServiceProxy('/mover/retract', Trigger)
         self.last_retracted = rospy.get_time()
-        self.wait_time_threshold = 2.0 # time to wait before reaching out after having retracted. in seconds
+        self.wait_time_threshold = 1.0 # time to wait before reaching out after having retracted. in seconds
 
         self.is_inference_active = False
         self.net = None

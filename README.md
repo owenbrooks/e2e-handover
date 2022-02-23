@@ -150,3 +150,7 @@ Running position node in gazebo
 ## Pairing controller
 - For DualShock PS4 controller, press and hold both the Share and PS buttons.
 - Open Bluetooth settings and click on 'Wireless controller' to pair.
+
+
+roslaunch e2e_handover node_only_inference.launch
+roslaunch e2e_handover inference.launch

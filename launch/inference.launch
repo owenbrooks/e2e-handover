@@ -2,10 +2,10 @@
 <launch>
   <arg name="sim" default="false" /> <!-- Set this to true when running in gazebo -->
   <rosparam command="load" file="$(find e2e_handover)/param/handover_params.yaml" />
-  <node name="inference" pkg="e2e_handover" type="inference.py" output="screen">
+  <!-- <node name="inference" pkg="e2e_handover" type="inference.py" output="screen">
       <rosparam command="load" file="$(find e2e_handover)/param/handover_params.yaml" />
       <param name="in_simulation" value="$(arg sim)" />
-  </node>
+  </node> -->
   <node name="rq_sensor" pkg="robotiq_ft_sensor" type="rq_sensor" output="screen">
     <param name="serial_id" value="ttyUSB1" />
   </node>
