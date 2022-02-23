@@ -37,7 +37,7 @@ Pressing 'r' begins or ends a recording session, identified by a timestamp. Imag
 
 `roslaunch e2e_handover recording.launch`
 
-Optionally, record the raw ROS messages with `rosbag record rosout /camera/color/image_raw robotiq_ft_wrench Robotiq2FGripperRobotInput /Robotiq2FGripperRobotOutput`
+Optionally, record the raw ROS messages with `rosbag record rosout /camera1/color/image_raw robotiq_ft_wrench Robotiq2FGripperRobotInput /Robotiq2FGripperRobotOutput /camera2/color/image_raw`
 
 ## Data preparation
 1. Calibrate the forces by zeroing out using the first reading: `python3 src/e2e_handover/prepare/calibrate_forces.py --data raw.csv`

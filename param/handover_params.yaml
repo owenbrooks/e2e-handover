@@ -33,3 +33,4 @@ inference:
     use_lstm: False
     use_segmentation: False
     output_velocity: False
+  strict_movement: False

@@ -69,6 +69,7 @@ class HandoverNode():
 
         self.is_inference_active = False
         self.net = None
+        self.strict_movement = inference_params['strict_movement']
 
         # Determine model paths
         self.model_paths = {}
@@ -88,20 +89,23 @@ class HandoverNode():
         action_string = 'giving' if self.handover_state == HandoverState.GIVING else 'receiving'
         if self.is_inference_active and self.sensor_manager.sensors_ready() and self.net is not None:
 
-            forces_t = torch.autograd.Variable(torch.FloatTensor(self.sensor_manager.calib_wrench_array)).unsqueeze_(0).to(self.device)
-
-            img_rgb_1 = self.sensor_manager.img_rgb_1[:, :, ::-1]
-            img_rgb_1_t = prepare_image(img_rgb_1).to(self.device)
-
-            if self.params[action_string].use_rgb_2:
-                img_rgb_2 = self.sensor_manager.img_rgb_2[:, :, ::-1]
-                img_rgb_2_t = prepare_image(img_rgb_2).to(self.device)
-                stacked_image_t = torch.cat([img_rgb_1_t, img_rgb_2_t], 0).unsqueeze(0) # concatenates into signal tensor with number of channels = sum of channels of each tensor
-                output_t = self.net(stacked_image_t, forces_t)
+            if self.current_gripper_state == GripState.GRABBING and self.current_gripper_state == GripState.RELEASING:
+                self.model_output = NaN
             else:
-                output_t = self.net(img_rgb_1_t, forces_t)
+                forces_t = torch.autograd.Variable(torch.FloatTensor(self.sensor_manager.calib_wrench_array)).unsqueeze_(0).to(self.device)
 
-            self.model_output = output_t.cpu().detach().numpy()[0][0]
+                img_rgb_1 = self.sensor_manager.img_rgb_1[:, :, ::-1]
+                img_rgb_1_t = prepare_image(img_rgb_1).to(self.device)
+
+                if self.params[action_string].use_rgb_2:
+                    img_rgb_2 = self.sensor_manager.img_rgb_2[:, :, ::-1]
+                    img_rgb_2_t = prepare_image(img_rgb_2).to(self.device)
+                    stacked_image_t = torch.cat([img_rgb_1_t, img_rgb_2_t], 0).unsqueeze(0) # concatenates into signal tensor with number of channels = sum of channels of each tensor
+                    output_t = self.net(stacked_image_t, forces_t)
+                else:
+                    output_t = self.net(img_rgb_1_t, forces_t)
+
+                self.model_output = output_t.cpu().detach().numpy()[0][0]
 
     def gripper_state_callback(self, gripper_input_msg):
         self.obj_det_state = obj_msg_to_enum[gripper_input_msg.gOBJ]
@@ -164,6 +168,7 @@ class HandoverNode():
 
         if self.current_gripper_state == GripState.HOLDING:
             if toggle_key_pressed or self.model_output > MODEL_THRESHOLD or self.in_simulation:
+                # pass
                 next_state = GripState.RELEASING
                 # open gripper
                 grip_cmd = open_gripper_msg()
@@ -172,6 +177,7 @@ class HandoverNode():
                     self.sensor_manager.contactile_bias_srv()
         elif self.current_gripper_state == GripState.WAITING:
             if toggle_key_pressed or self.model_output < MODEL_THRESHOLD or self.in_simulation:
+                # pass
                 next_state = GripState.GRABBING
                 # close gripper
                 grip_cmd = close_gripper_msg()
@@ -199,8 +205,9 @@ class HandoverNode():
             self.motion_state = MotionState.REACHING
             response = self.mover_reach()
             if not response.success:
-                rospy.logerr("Movement unsuccessful")
-                sys.exit()
+                rospy.logerr(f"Movement unsuccessful: {response.message}")
+                if self.strict_movement:
+                    sys.exit()
             self.motion_state = MotionState.EXTENDED
             self.toggle_inference(set_on=True)
         elif (curr_mover == MotionState.EXTENDED or curr_mover == MotionState.INITIALISING) and next_mover == MotionState.RETURNING:
@@ -208,8 +215,9 @@ class HandoverNode():
             self.motion_state = MotionState.RETURNING
             response = self.mover_retract()
             if not response.success:
-                rospy.logerr("Movement unsuccessful")
-                sys.exit()
+                rospy.logerr(f"Movement unsuccessful: {response.message}")
+                if self.strict_movement:
+                    sys.exit()
             self.motion_state = MotionState.RETRACTED
 
             # Switch from giving to receiving or vice versa
@@ -228,7 +236,7 @@ class HandoverNode():
         rospy.loginfo("Waiting for mover to be ready to send robot to position...")
         rospy.wait_for_service('/mover/setup')
         response = self.mover_setup()
-        if response.success:
+        if response.success or not self.strict_movement:
             self.last_retracted = rospy.get_time()
             self.motion_state = MotionState.RETRACTED
         else:
