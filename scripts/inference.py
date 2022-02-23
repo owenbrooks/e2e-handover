@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from collections import namedtuple
+from collections import namedtuple, deque
 from e2e_handover.gripper import ObjDetection, obj_msg_to_enum, open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
 from e2e_handover.image_ops import prepare_image
 from e2e_handover.train.model_double import MultiViewResNet
@@ -12,6 +12,7 @@ from sensor_msgs.msg import Joy
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 import rospkg
 import rospy
+from statistics import mean
 from std_srvs.srv import Trigger
 import sys
 import torch
@@ -95,6 +96,9 @@ class HandoverNode():
                 self.net_by_action[action_string] = None
                 rospy.logerr(f"Unable to load model at {model_path}")
 
+        # sliding window used for calculating moving average to smooth the output
+        self.output_window_length = inference_params['output_window_length']
+        self.recent_outputs = deque(maxlen=self.output_window_length)
         self.model_output = NaN
 
     def spin_inference(self):
@@ -103,6 +107,7 @@ class HandoverNode():
         if self.is_inference_active and self.sensor_manager.sensors_ready() and self.net is not None:
 
             if self.current_gripper_state == GripState.GRABBING and self.current_gripper_state == GripState.RELEASING:
+                self.recent_outputs = deque(maxlen=self.output_window_length)
                 self.model_output = NaN
             else:
                 forces_t = torch.autograd.Variable(torch.FloatTensor(self.sensor_manager.calib_wrench_array)).unsqueeze_(0).to(self.device)
@@ -118,7 +123,10 @@ class HandoverNode():
                 else:
                     output_t = self.net(img_rgb_1_t, forces_t)
 
-                self.model_output = output_t.cpu().detach().numpy()[0][0]
+
+                next_output = output_t.cpu().detach().numpy()[0][0]
+                self.recent_outputs.append(next_output)
+                self.model_output = mean(self.recent_outputs)
 
     def gripper_state_callback(self, gripper_input_msg):
         self.obj_det_state = obj_msg_to_enum[gripper_input_msg.gOBJ]

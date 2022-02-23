@@ -36,3 +36,4 @@ inference:
     output_velocity: False
     retract_after: True
   strict_movement: False
+  output_window_length: 
