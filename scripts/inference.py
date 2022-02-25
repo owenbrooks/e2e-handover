@@ -85,16 +85,17 @@ class HandoverNode():
             model_path = os.path.join(package_dir, model_file)
             rospy.loginfo(f"Using model: {model_path} for {action_string}")
 
-            if os.path.isfile(model_path):
-                self.net_by_action[action_string] = MultiViewResNet(self.params[action_string])
-                self.net_by_action[action_string].load_state_dict(torch.load(model_path))
-                self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-                rospy.loginfo("Using device: " + str(self.device))
-                self.net_by_action[action_string].to(self.device)
-                self.net_by_action[action_string].eval()
-            else:
-                self.net_by_action[action_string] = None
-                rospy.logerr(f"Unable to load model at {model_path}")
+            if not self.in_simulation:
+                if os.path.isfile(model_path):
+                    self.net_by_action[action_string] = MultiViewResNet(self.params[action_string])
+                    self.net_by_action[action_string].load_state_dict(torch.load(model_path))
+                    self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+                    rospy.loginfo("Using device: " + str(self.device))
+                    self.net_by_action[action_string].to(self.device)
+                    self.net_by_action[action_string].eval()
+                else:
+                    self.net_by_action[action_string] = None
+                    rospy.logerr(f"Unable to load model at {model_path}")
 
         # sliding window used for calculating moving average to smooth the output
         self.output_window_length = inference_params['output_window_length']
@@ -123,10 +124,10 @@ class HandoverNode():
                 else:
                     output_t = self.net(img_rgb_1_t, forces_t)
 
-
-                next_output = output_t.cpu().detach().numpy()[0][0]
-                self.recent_outputs.append(next_output)
-                self.model_output = mean(self.recent_outputs)
+                if not self.in_simulation:
+                    next_output = output_t.cpu().detach().numpy()[0][0]
+                    self.recent_outputs.append(next_output)
+                    self.model_output = mean(self.recent_outputs)
 
     def gripper_state_callback(self, gripper_input_msg):
         self.obj_det_state = obj_msg_to_enum[gripper_input_msg.gOBJ]
@@ -158,7 +159,7 @@ class HandoverNode():
         else:
             self.sensor_manager.deactivate()
 
-        if set_on: # load correct network for current handover action
+        if set_on and not self.in_simulation: # load correct network for current handover action
             action_string = 'giving' if self.handover_state == HandoverState.GIVING else 'receiving'
             self.net = self.net_by_action[action_string]
 
@@ -253,10 +254,10 @@ class HandoverNode():
             rospy.logerr(f"Movement unsuccessful: {response.message}")
             sys.exit()
 
-        if not self.in_simulation: # don't wait for gripper if simulated, since there isn't a gripper in gazebo
-            while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-                rospy.loginfo("Waiting for gripper to connect...")
-                rate.sleep()
+        # if not self.in_simulation: # don't wait for gripper if simulated, since there isn't a gripper in gazebo
+        #     while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+        #         rospy.loginfo("Waiting for gripper to connect...")
+        #         rate.sleep()
 
         # Initialise the gripper via reset and activate messages
         grip_cmd = reset_gripper_msg()
