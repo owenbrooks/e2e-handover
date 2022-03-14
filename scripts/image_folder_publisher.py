@@ -10,8 +10,9 @@ from cv_bridge import CvBridge, CvBridgeError
 def image_folder_publisher():
     cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images or vice versa
 
-    image_pub = rospy.Publisher('/image', Image, queue_size=10)
     rospy.init_node('image_folder_publisher')
+    image_topic = rospy.get_param('~image_topic')
+    image_pub = rospy.Publisher(image_topic, Image, queue_size=10)
     folder_path = rospy.get_param('~image_folder')
     spin_rate = rospy.get_param('~rate')
     rate = rospy.Rate(spin_rate) # hz

@@ -10,4 +10,7 @@
     <remap from="depth/camera_info" to="$(arg depth_camera_info)"/>  
     <remap from="depth/image_rect" to="$(arg depth_img_rect)"/>  
   </node>
+
+  <node pkg="rostopic" type="rostopic" name="arbitrary_name" args="pub /camera/depth/camera_info sensor_msgs/CameraInfo -f /catkin_ws/src/e2e-handover/camera_data/top_depth.yaml" output="screen"/>
+  <node pkg="rostopic" type="rostopic" name="arbitrary_name2" args="pub /camera/color/camera_info sensor_msgs/CameraInfo -f /catkin_ws/src/e2e-handover/camera_data/top_rgb.yaml" output="screen"/>
 </launch>

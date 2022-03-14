@@ -1,8 +1,10 @@
 <?xml version="1.0"?>
 <launch>
     <arg name="image_folder" default="images" />
+    <arg name="image_topic" default="/camera/depth/image_raw" />
     <arg name="rate" default="1" />
     <node name="image_folder_publisher" pkg="e2e_handover" type="image_folder_publisher.py" output="screen">
+        <param name="image_topic" value="$(arg image_topic)" />
         <param name="image_folder" value="$(arg image_folder)" />
         <param name="rate" value="$(arg rate)" />
     </node>
