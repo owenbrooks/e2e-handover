@@ -1,19 +1,34 @@
 #!/usr/bin/env python3
 import rospy
 from sensor_msgs.msg import Image
-from glob import glob
+import glob
 import os
+import cv2
+from cv_bridge import CvBridge, CvBridgeError
+
 
 def image_folder_publisher():
+    cv_bridge = CvBridge() # for converting ROS image messages to OpenCV images or vice versa
+
     image_pub = rospy.Publisher('/image', Image, queue_size=10)
     rospy.init_node('image_folder_publisher')
-    rate = rospy.Rate(10) # hz
     folder_path = rospy.get_param('~image_folder')
-    glob(folder_path)
-    while not rospy.is_shutdown():
-        rospy.loginfo(f"{folder_path}")
-        # image_pub.publish(hello_str)
+    spin_rate = rospy.get_param('~rate')
+    rate = rospy.Rate(spin_rate) # hz
+    image_paths = sorted(glob.glob(os.path.join(folder_path, '*'))) # alphabetical sorting
+    index = 0
+    print(f"Publishing {len(image_paths)} images from folder {folder_path}")
+    while not rospy.is_shutdown() and index != len(image_paths):
+        img_path = image_paths[index]
+        rospy.loginfo(f"{img_path}")
+        img = cv2.imread(img_path)
+        img_msg = cv_bridge.cv2_to_imgmsg(img, encoding='passthrough')
+        # print(img)
+        image_pub.publish(img_msg)
+        index += 1
         rate.sleep()
+
+    print(f"Finished publishing all images in {folder_path}")
 
 if __name__ == '__main__':
     try:
