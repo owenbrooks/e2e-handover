@@ -3,14 +3,14 @@
 
    <arg name="rgb_camera_info" default="/camera/color/camera_info" />
    <arg name="depth_camera_info" default="/camera/depth/camera_info" />
-   <arg name="depth_image_rect" default="/camera/depth/image_raw" />
+   <arg name="depth_image_rect" default="/camera/depth/image_rect_raw" />
 
   <node pkg="nodelet" type="nodelet" name="register" args="load depth_image_proc/register standalone_nodelet --no-bond">
     <remap from="rgb/camera_info" to="$(arg rgb_camera_info)" />  
     <remap from="depth/camera_info" to="$(arg depth_camera_info)"/>  
-    <remap from="depth/image_rect" to="$(arg depth_img_rect)"/>  
+    <remap from="depth/image_rect" to="$(arg depth_image_rect)"/>  
   </node>
 
-  <node pkg="rostopic" type="rostopic" name="arbitrary_name" args="pub /camera/depth/camera_info sensor_msgs/CameraInfo -f /catkin_ws/src/e2e-handover/camera_data/top_depth.yaml" output="screen"/>
-  <node pkg="rostopic" type="rostopic" name="arbitrary_name2" args="pub /camera/color/camera_info sensor_msgs/CameraInfo -f /catkin_ws/src/e2e-handover/camera_data/top_rgb.yaml" output="screen"/>
+  <!-- <node pkg="rostopic" type="rostopic" name="arbitrary_name" args="pub /camera/depth/camera_info sensor_msgs/CameraInfo -f /catkin_ws/src/e2e-handover/camera_data/top_depth.yaml" output="screen"/>
+  <node pkg="rostopic" type="rostopic" name="arbitrary_name2" args="pub /camera/color/camera_info sensor_msgs/CameraInfo -f /catkin_ws/src/e2e-handover/camera_data/top_rgb.yaml" output="screen"/> -->
 </launch>
