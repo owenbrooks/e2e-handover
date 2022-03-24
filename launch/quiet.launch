@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-  <node name="handover" pkg="e2e_handover" type="handover.py" output="screen">
-    <rosparam command="load" file="$(find e2e_handover)/param/handover_params.yaml" />
-  </node>
-</launch>
