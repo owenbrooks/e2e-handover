@@ -238,9 +238,9 @@ class Recorder():
     def run(self):
         rate = rospy.Rate(30)
 
-        while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
-            rospy.loginfo("Waiting for gripper to connect")
-            rate.sleep()
+        # while self.obj_det_state == ObjDetection.GRIPPER_OFFLINE and not rospy.is_shutdown():
+        #     rospy.loginfo("Waiting for gripper to connect")
+        #     rate.sleep()
 
         # initialise the gripper via reset and activate messages
         grip_cmd = reset_gripper_msg()

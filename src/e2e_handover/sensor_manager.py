@@ -25,14 +25,14 @@ class SensorManager():
         self.img_rgb_1 = None
         self.img_rgb_2 = None
         if self.use_rgb_1:
-            self.image_rgb_1_sub = rospy.Subscriber('/camera1/color/image_raw', Image, self.image_rgb_1_callback)
+            self.image_rgb_1_sub = rospy.Subscriber('/camera/color/image_raw', Image, self.image_rgb_1_callback)
         if self.use_rgb_2:
             self.image_rgb_2_sub = rospy.Subscriber('/camera2/color/image_raw', Image, self.image_rgb_2_callback)
         
         self.img_depth_1 = None
         self.img_depth_2 = None
         if self.use_depth_1:
-            self.image_depth_1_sub = rospy.Subscriber('/camera1/aligned_depth_to_color/image_raw', Image, self.image_depth_1_callback)
+            self.image_depth_1_sub = rospy.Subscriber('/camera/aligned_depth_to_color/image_raw', Image, self.image_depth_1_callback)
         if self.use_depth_2:
             self.image_depth_2_sub = rospy.Subscriber('/camera2/aligned_depth_to_color/image_raw', Image, self.image_depth_2_callback)
         
