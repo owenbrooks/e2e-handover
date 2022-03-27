@@ -5,12 +5,15 @@ from e2e_handover.train.model_double import MultiViewResNet
 from e2e_handover.train.dataset import DeepHandoverDataset
 from e2e_handover.image_ops import prepare_image
 # from e2e_handover.segmentation import Segmentor
+from rembg import detect
+import rembg
 import numpy as np
 import os
 import sys
 import torch
 from torchvision import transforms
 import yaml
+from PIL import Image
 
 def main(model_path, should_segment, inference_params):
     print(inference_params)
@@ -30,6 +33,8 @@ def main(model_path, should_segment, inference_params):
     resize = transforms.Compose([ transforms.Resize((sample_height,sample_width//2)), transforms.ToTensor()])
     viewing_dataset = DeepHandoverDataset(viewing_params, transform=resize)
     inference_dataset = DeepHandoverDataset(inference_params)
+
+    ort_session = detect.ort_session('u2netp')
 
     font = cv2.FONT_HERSHEY_SIMPLEX
 
@@ -52,11 +57,16 @@ def main(model_path, should_segment, inference_params):
         # rgb_images = np.concatenate((images['image_rgb_1'], images['image_rgb_2'].numpy()[:, ::-1, :]), axis=2).transpose(1, 2, 0)
         # depth_images = np.concatenate((images['image_depth_1'], images['image_depth_2'].numpy()[:, ::-1, :]), axis=2).transpose(1, 2, 0)
         rgb_images = (images['image_rgb_2'].numpy()[:, :, :]).transpose(1, 2, 0)
+        # prediction_img = detect.predict(ort_session, rgb_images)
+        # prediction_img.resize((rgb_images.shape[0], rgb_images.shape[1]), Image.ANTIALIAS)
+        # bg_mask = np.array(prediction_img) == 0
+        bg_mask = rembg.remove((rgb_images*255).astype(np.uint8), only_mask=True, session=ort_session)
+        print(rgb_images.shape, bg_mask.shape)
         orig_rgb = rgb_images.copy()
         depth_images = (images['image_depth_2'].numpy()[:, :, :]).transpose(1, 2, 0)
         depth_images /= 65535.0 # for display using opencv
         bg_threshold = 0.02
-        bg_mask = depth_images[:, :, 0] > bg_threshold
+        # bg_mask = depth_images[:, :, 0] > bg_threshold
         inf_mask = depth_images[:, :, 0] == 0.0
 
         # checks top row
@@ -72,9 +82,10 @@ def main(model_path, should_segment, inference_params):
         depth_images *= 2.0 # exagerate for display
         inf_mask = denoise(inf_mask)
         # bg_mask = denoise(bg_mask)
-        orig_rgb[inf_mask] = (0, 255, 255)
+        # orig_rgb[inf_mask] = (0, 255, 255)
         # depth_images[inf_mask] = 1.0
-        rgb_images[bg_mask] = (255, 255, 255)
+        # rgb_images[bg_mask] = (255, 255, 255)
+        rgb_images = cv2.bitwise_and(rgb_images, rgb_images, mask=bg_mask)
         # img = np.concatenate((rgb_images, depth_images), axis=0)[:, :, ::-1].copy()
         img = np.concatenate((rgb_images, orig_rgb), axis=0)[:, :, ::-1].copy()
 
