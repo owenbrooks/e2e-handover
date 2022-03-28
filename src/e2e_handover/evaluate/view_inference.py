@@ -4,7 +4,7 @@ from collections import namedtuple
 from e2e_handover.train.model_double import MultiViewResNet
 from e2e_handover.train.dataset import DeepHandoverDataset
 from e2e_handover.image_ops import prepare_image
-# from e2e_handover.segmentation import Segmentor
+from e2e_handover.segmentation import Segmentor
 import numpy as np
 import os
 import sys
@@ -68,30 +68,33 @@ def main(model_path, should_segment, inference_params):
 
         if should_segment:
             binary_mask = segmentor.person_binary_inference(img)
-            img = np.array(binary_mask*255, dtype=np.uint8)
+            print(img.shape)
+            img = segmentor.inference(images['image_rgb_1'].numpy().copy())
+            print(img.shape)
+            # img = np.array(binary_mask*255, dtype=np.uint8)
             # img = img[binary_mask]
-        else:
-            image_number_string = str(index) + '/' + str(len(viewing_dataset))
-            cv2.putText(img, image_number_string, (0, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
+        # else:
+        #     image_number_string = str(index) + '/' + str(len(viewing_dataset))
+        #     cv2.putText(img, image_number_string, (0, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
 
-            ground_truth_state = 'open' if sample['gripper_is_open'] else 'closed'
-            cv2.putText(img, ground_truth_state, (550, 420), font, 0.8, (255, 255, 255), 1, cv2.LINE_AA)
+        #     ground_truth_state = 'open' if sample['gripper_is_open'] else 'closed'
+        #     cv2.putText(img, ground_truth_state, (550, 420), font, 0.8, (255, 255, 255), 1, cv2.LINE_AA)
 
-            if not args.no_inference:
-                inference_sample = inference_dataset[index]
-                img_t = inference_sample['image'].unsqueeze(0).to(device)
-                forces_t = torch.Tensor(inference_sample['force'].unsqueeze(0)).to(device)
+        #     if not args.no_inference:
+        #         inference_sample = inference_dataset[index]
+        #         img_t = inference_sample['image'].unsqueeze(0).to(device)
+        #         forces_t = torch.Tensor(inference_sample['force'].unsqueeze(0)).to(device)
 
-                # forward + backward + optimize
-                output_t = net(img_t, forces_t)
+        #         # forward + backward + optimize
+        #         output_t = net(img_t, forces_t)
 
-                model_output = output_t.cpu().detach().numpy()[0][0]
-                if inference_params.use_lstm:
-                    model_output = model_output[0]
-                model_open = model_output > 0.5
-                cv2.putText(img, f"{model_output:.6f}", (500, 50), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
-                model_state = 'open' if model_open else 'closed'
-                cv2.putText(img, model_state, (550, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
+        #         model_output = output_t.cpu().detach().numpy()[0][0]
+        #         if inference_params.use_lstm:
+        #             model_output = model_output[0]
+        #         model_open = model_output > 0.5
+        #         cv2.putText(img, f"{model_output:.6f}", (500, 50), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
+        #         model_state = 'open' if model_open else 'closed'
+        #         cv2.putText(img, model_state, (550, 460), font, 0.8, (0, 255, 0), 1, cv2.LINE_AA)
 
         cv2.imshow('Inference ', img)
         

@@ -28,6 +28,7 @@ class Segmentor():
         return point_rend_result[:, :, ::-1]
 
     def person_binary_inference(self, im):
+        return self.inference(im)
         outputs = self.predictor(im)
 
         fields = outputs['instances'].get_fields()
@@ -44,7 +45,7 @@ class Segmentor():
 
 
 if __name__ == "__main__":
-    im = cv2.imread("input.png")
+    im = cv2.imread("81_2022-02-09-05:14:50.png")
     seg = Segmentor()
     point_rend_result = seg.inference(im)
 
