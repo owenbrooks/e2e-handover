@@ -154,3 +154,6 @@ Running position node in gazebo
 
 roslaunch e2e_handover node_only_inference.launch
 roslaunch e2e_handover inference.launch
+
+## Getting detectron working
+`python -m pip install 'git+https://github.com/facebookresearch/detectron2.git'`

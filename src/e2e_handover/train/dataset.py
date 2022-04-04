@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 from collections import namedtuple
+from e2e_handover.image_ops import remove_transparency
 import os
 import pandas as pd
 from PIL import Image
@@ -111,6 +112,7 @@ class DeepHandoverDataset(Dataset):
                 # print(image_rel_path)
                 img_path = os.path.join(self.data_dir, image_rel_path)
                 image = Image.open(img_path).convert()
+                image = remove_transparency(image) # removes the alpha channel if present and replaces with black background
                 if self.main_transform is None:
                     image_t = self.transform_by_image_type[key](image)
                 else:

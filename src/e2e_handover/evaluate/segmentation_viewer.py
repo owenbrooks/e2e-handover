@@ -57,9 +57,7 @@ def main(model_path, should_segment, inference_params):
         # rgb_images = np.concatenate((images['image_rgb_1'], images['image_rgb_2'].numpy()[:, ::-1, :]), axis=2).transpose(1, 2, 0)
         # depth_images = np.concatenate((images['image_depth_1'], images['image_depth_2'].numpy()[:, ::-1, :]), axis=2).transpose(1, 2, 0)
         rgb_images = (images['image_rgb_2'].numpy()[:, :, :]).transpose(1, 2, 0)
-        # prediction_img = detect.predict(ort_session, rgb_images)
-        # prediction_img.resize((rgb_images.shape[0], rgb_images.shape[1]), Image.ANTIALIAS)
-        # bg_mask = np.array(prediction_img) == 0
+
         bg_mask = rembg.remove((rgb_images*255).astype(np.uint8), only_mask=True, session=ort_session)
         print(rgb_images.shape, bg_mask.shape)
         orig_rgb = rgb_images.copy()
@@ -77,7 +75,17 @@ def main(model_path, should_segment, inference_params):
         # bg_mask[:, bg_columns] = True
         # inf_mask = np.zeros((rgb_images.shape[0], rgb_images.shape[1]), dtype=np.bool)
         # inf_mask[:, inf_columns] = True
-
+        cv2.imshow('fg', bg_mask)
+        print(bg_mask)
+        # bg_mask =
+        # bg_mask = cv2.bitwise_not(bg_mask)
+        # print(bg_mask)
+        cv2.imshow('bg', bg_mask)
+        rgb_images[bg_mask == 0, :] = 255
+        # white_bg = cv2.bitwise_or(np.zeros_like(rgb_images), solid_white, mask=bg_mask)
+        # cv2.imshow('white', white_bg)
+        # print(white_bg)
+        # rgb_images = cv2.bitwise_or(rgb_images, white_bg, mask=bg_mask)
 
         depth_images *= 2.0 # exagerate for display
         inf_mask = denoise(inf_mask)
@@ -85,7 +93,9 @@ def main(model_path, should_segment, inference_params):
         # orig_rgb[inf_mask] = (0, 255, 255)
         # depth_images[inf_mask] = 1.0
         # rgb_images[bg_mask] = (255, 255, 255)
-        rgb_images = cv2.bitwise_and(rgb_images, rgb_images, mask=bg_mask)
+
+        # rgb_images = cv2.bitwise_and(rgb_images, rgb_images, mask=bg_mask) # makes background black
+
         # img = np.concatenate((rgb_images, depth_images), axis=0)[:, :, ::-1].copy()
         img = np.concatenate((rgb_images, orig_rgb), axis=0)[:, :, ::-1].copy()
 

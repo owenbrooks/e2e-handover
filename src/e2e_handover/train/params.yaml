@@ -11,7 +11,7 @@ val_fraction: 0.15
 test_fraction: 0.15
 
 use_rgb_1: True
-use_rgb_2: True
+use_rgb_2: False
 use_depth_1: False
 use_depth_2: False
 use_tactile: False

@@ -3,7 +3,7 @@ import cv2
 from collections import namedtuple
 from e2e_handover.train.model_double import MultiViewResNet
 from e2e_handover.train.dataset import DeepHandoverDataset
-from e2e_handover.image_ops import prepare_image
+from e2e_handover.image_ops import prepare_image, remove_transparency
 # from e2e_handover.segmentation import Segmentor
 import numpy as np
 import os
