@@ -1,7 +1,6 @@
 import argparse
 import cv2
 from collections import namedtuple
-from e2e_handover.train.model_double import MultiViewResNet
 from e2e_handover.train.dataset import DeepHandoverDataset
 from e2e_handover.image_ops import prepare_image
 # from e2e_handover.segmentation import Segmentor
@@ -13,9 +12,8 @@ import sys
 import torch
 from torchvision import transforms
 import yaml
-from PIL import Image
 
-def main(model_path, should_segment, inference_params):
+def main(inference_params):
     print(inference_params)
 
     # Convert to dict so we can edit it so that we can see all views
@@ -32,14 +30,12 @@ def main(model_path, should_segment, inference_params):
     sample_width = 300*2
     resize = transforms.Compose([ transforms.Resize((sample_height,sample_width//2)), transforms.ToTensor()])
     viewing_dataset = DeepHandoverDataset(viewing_params, transform=resize)
-    inference_dataset = DeepHandoverDataset(inference_params)
 
     ort_session = detect.ort_session('u2netp')
 
     font = cv2.FONT_HERSHEY_SIMPLEX
 
     index = 0
-    print("background is white, infinity/no return is blue")
     while True:
         sample = viewing_dataset[index]
 
@@ -63,38 +59,13 @@ def main(model_path, should_segment, inference_params):
         orig_rgb = rgb_images.copy()
         depth_images = (images['image_depth_2'].numpy()[:, :, :]).transpose(1, 2, 0)
         depth_images /= 65535.0 # for display using opencv
-        bg_threshold = 0.02
-        # bg_mask = depth_images[:, :, 0] > bg_threshold
         inf_mask = depth_images[:, :, 0] == 0.0
 
-        # checks top row
-        inf_columns = depth_images[0, :, 0] == 0.0
-        bg_columns = depth_images[0, :, 0] > bg_threshold
-
-        # bg_mask = np.zeros((rgb_images.shape[0], rgb_images.shape[1]), dtype=np.bool)
-        # bg_mask[:, bg_columns] = True
-        # inf_mask = np.zeros((rgb_images.shape[0], rgb_images.shape[1]), dtype=np.bool)
-        # inf_mask[:, inf_columns] = True
-        cv2.imshow('fg', bg_mask)
-        print(bg_mask)
-        # bg_mask =
-        # bg_mask = cv2.bitwise_not(bg_mask)
-        # print(bg_mask)
         cv2.imshow('bg', bg_mask)
         rgb_images[bg_mask == 0, :] = 255
-        # white_bg = cv2.bitwise_or(np.zeros_like(rgb_images), solid_white, mask=bg_mask)
-        # cv2.imshow('white', white_bg)
-        # print(white_bg)
-        # rgb_images = cv2.bitwise_or(rgb_images, white_bg, mask=bg_mask)
 
         depth_images *= 2.0 # exagerate for display
         inf_mask = denoise(inf_mask)
-        # bg_mask = denoise(bg_mask)
-        # orig_rgb[inf_mask] = (0, 255, 255)
-        # depth_images[inf_mask] = 1.0
-        # rgb_images[bg_mask] = (255, 255, 255)
-
-        # rgb_images = cv2.bitwise_and(rgb_images, rgb_images, mask=bg_mask) # makes background black
 
         # img = np.concatenate((rgb_images, depth_images), axis=0)[:, :, ::-1].copy()
         img = np.concatenate((rgb_images, orig_rgb), axis=0)[:, :, ::-1].copy()
@@ -131,9 +102,6 @@ def denoise(img):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--no-inference', action='store_true')
-    parser.add_argument('--model', type=str, default='2021-12-14-23_calib.pt')
-    parser.add_argument('--segment', action='store_true')
     parser.add_argument('--data', type=str, help='path of csv file to run on e.g. data/2021-12-09-04:56:05/raw.csv')
 
     current_dirname = os.path.dirname(__file__)
@@ -149,4 +117,4 @@ if __name__ == "__main__":
         params['data_file'] = args.data
 
         params = namedtuple("Params", params.keys())(*params.values())
-        main(args.model, args.segment, params)
+        main(params)
