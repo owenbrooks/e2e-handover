@@ -7,7 +7,7 @@ from enum import IntEnum
 import os
 import pandas as pd
 import cv2
-from e2e_handover.segmentation import Segmentor
+from e2e_handover.bg_segmentation import Segmentor
 import numpy as np
 
 class GripperAction(IntEnum):
