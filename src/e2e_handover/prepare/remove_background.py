@@ -15,12 +15,12 @@ from PIL import Image
 import cv2
 
 class BackgroundRemover():
-    def __init__(self, data_csv_path):
-        data = pd.read_csv(data_csv_path, sep=' ')
+    def __init__(self, data_csv_path, csv_only=False):
+        df = pd.read_csv(data_csv_path, sep=' ')
         csv_directory = os.path.dirname(data_csv_path)
         image_cols = ['image_rgb_1', 'image_rgb_2']
-        actual_image_cols = [col for col in image_cols if col in data.columns]
-        image_paths = data[actual_image_cols]
+        actual_image_cols = [col for col in image_cols if col in df.columns]
+        image_paths = df[actual_image_cols]
         image_paths_flat = pd.concat([image_paths[col] for col in image_paths], ignore_index=True)
 
         # create directories to store new images if needed
@@ -35,8 +35,6 @@ class BackgroundRemover():
 
         full_input_paths = [os.path.join(csv_directory, p) for p in image_paths_flat]
         
-        self.segmentor = Segmentor()
-
         # p = Pool()
         # p.map(self.save_rembg, full_input_paths)
 
@@ -44,10 +42,22 @@ class BackgroundRemover():
         current_time = now.strftime("%H:%M:%S")
         print(f"Started at {current_time}.")
 
-        length = len(full_input_paths)
-        for i, path in enumerate(full_input_paths):
-            self.save_rembg(path)
-            print(f"{i+1}/{length} images done.")
+        if not csv_only:
+            self.segmentor = Segmentor()
+            length = len(full_input_paths)
+            for i, path in enumerate(full_input_paths):
+                self.save_rembg(path)
+                print(f"{i+1}/{length} images done.")
+        
+        # create new csv file suffixed with _rembg
+        for col in actual_image_cols:
+            split_paths = [os.path.split(path) for path in df[col].values]
+            suffixed_joined_paths = [os.path.join(split[0]+'_rembg', split[1]) for split in split_paths]
+            df[col] = suffixed_joined_paths
+        
+        current_time = now.strftime("%H:%M:%S")
+        print(f"Finished at {current_time}.")
+        df.to_csv(os.path.splitext(data_csv_path)[0] + '_rembg.csv', sep=' ', index=False)
 
     def save_rembg(self, orig_image_path: str):
         # load and transform image
@@ -60,10 +70,11 @@ class BackgroundRemover():
         new_head = orig_head + '_rembg'
         output_image_path = os.path.join(new_head, tail)
         cv2.imwrite(output_image_path, result[:, :, ::-1])
-
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', required=True, type=str, help='path of csv file to run on e.g. data/2021-12-09-04:56:05/raw.csv')
+    parser.add_argument('--csv-only', action='store_true', help="just update csv with new filenames, don't remove backgrounds")
     args = parser.parse_args()
 
-    bg_rem = BackgroundRemover(args.data)
+    bg_rem = BackgroundRemover(args.data, args.csv_only)
