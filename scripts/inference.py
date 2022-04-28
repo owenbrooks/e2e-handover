@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 from collections import namedtuple, deque
+from cv_bridge import CvBridge
+from e2e_handover.bg_segmentation import Segmentor
 from e2e_handover.gripper import ObjDetection, obj_msg_to_enum, open_gripper_msg, close_gripper_msg, activate_gripper_msg, reset_gripper_msg
 from e2e_handover.image_ops import prepare_image
 from e2e_handover.train.model_double import MultiViewResNet
@@ -8,7 +10,7 @@ from numpy.core.numeric import NaN
 import os
 from pynput import keyboard
 from e2e_handover.sensor_manager import SensorManager
-from sensor_msgs.msg import Joy
+from sensor_msgs.msg import Joy, Image
 from robotiq_2f_gripper_control.msg import _Robotiq2FGripper_robot_output as outputMsg, _Robotiq2FGripper_robot_input as inputMsg
 import rospkg
 import rospy
@@ -101,24 +103,43 @@ class HandoverNode():
         self.recent_outputs = deque(maxlen=self.output_window_length)
         self.model_output = NaN
 
+        # create background remover
+        rospy.loginfo("1")
+        if self.sensor_manager.use_segmentation:
+            self.segmentor = Segmentor()
+
+            self.segmentation_pub = rospy.Publisher('removed_bg', Image, queue_size=1)
+            self.cv_bridge = CvBridge()
+        rospy.loginfo("2")
+
+
     def spin_inference(self):
         # TODO: feed correct sensor data to model according to handover_params.yaml
         action_string = 'giving' if self.handover_state == HandoverState.GIVING else 'receiving'
         if self.is_inference_active and self.sensor_manager.sensors_ready() and self.net is not None:
 
-            if self.current_gripper_state == GripState.GRABBING and self.current_gripper_state == GripState.RELEASING:
+            if self.current_gripper_state == GripState.GRABBING and self.current_gripper_state == GripState.RELEASING: # this cannot be right surely, need to fix
                 self.recent_outputs = deque(maxlen=self.output_window_length)
                 self.model_output = NaN
             else:
                 forces_t = torch.autograd.Variable(torch.FloatTensor(self.sensor_manager.calib_wrench_array)).unsqueeze_(0).to(self.device)
 
                 img_rgb_1 = self.sensor_manager.img_rgb_1[:, :, ::-1]
+
+                # remove background if enabled
+                if self.sensor_manager.use_segmentation:
+                    without_background = self.segmentor.inference(img_rgb_1)
+                    img_rgb_1 = without_background
+                    # publish for development purposes
+                    self.segmentation_pub.publish(self.cv_bridge.cv2_to_imgmsg(img_rgb_1[:, :, ::-1]))
+
+
                 img_rgb_1_t = prepare_image(img_rgb_1).to(self.device)
 
                 if self.params[action_string].use_rgb_2:
                     img_rgb_2 = self.sensor_manager.img_rgb_2[:, :, ::-1]
                     img_rgb_2_t = prepare_image(img_rgb_2).to(self.device)
-                    stacked_image_t = torch.cat([img_rgb_1_t, img_rgb_2_t], 0).unsqueeze(0) # concatenates into signal tensor with number of channels = sum of channels of each tensor
+                    stacked_image_t = torch.cat([img_rgb_1_t, img_rgb_2_t], 0).unsqueeze(0) # concatenates into single tensor with number of channels = sum of channels of each tensor
                     output_t = self.net(stacked_image_t, forces_t)
                 else:
                     output_t = self.net(img_rgb_1_t, forces_t)

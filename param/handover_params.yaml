@@ -20,7 +20,7 @@ inference:
     use_force: True
     use_tactile: False
     use_lstm: False
-    use_segmentation: False
+    use_segmentation: True
     output_velocity: False
     retract_after: False
   receiving:
@@ -32,7 +32,7 @@ inference:
     use_force: True
     use_tactile: False
     use_lstm: False
-    use_segmentation: False
+    use_segmentation: True
     output_velocity: False
     retract_after: True
   strict_movement: False
