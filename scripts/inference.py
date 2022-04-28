@@ -104,13 +104,11 @@ class HandoverNode():
         self.model_output = NaN
 
         # create background remover
-        rospy.loginfo("1")
         if self.sensor_manager.use_segmentation:
             self.segmentor = Segmentor()
 
             self.segmentation_pub = rospy.Publisher('removed_bg', Image, queue_size=1)
             self.cv_bridge = CvBridge()
-        rospy.loginfo("2")
 
 
     def spin_inference(self):
