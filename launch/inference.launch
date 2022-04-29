@@ -11,8 +11,8 @@
   </node>
   <node name="Robotiq2FGripperRtuNode" pkg="robotiq_2f_gripper_control" type="Robotiq2FGripperRtuNode.py" args="/dev/ttyUSB0" output="screen"/>
   <include file="$(find realsense2_camera)/launch/rs_multiple_devices.launch">
-    <arg name="serial_no_camera1" value="141722072409"/>
-    <arg name="serial_no_camera2" value="815412070589"/>
+    <arg name="serial_no_camera1" value="815412070589"/>
+    <arg name="serial_no_camera2" value="141722072409"/>
   </include>
   <node name="mover" pkg="e2e_handover" type="mover.py" />
   <include file="$(find ur_robot_driver)/launch/ur5_bringup.launch" pass_all_args="true">

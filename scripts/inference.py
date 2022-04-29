@@ -115,7 +115,6 @@ class HandoverNode():
         # TODO: feed correct sensor data to model according to handover_params.yaml
         action_string = 'giving' if self.handover_state == HandoverState.GIVING else 'receiving'
         if self.is_inference_active and self.sensor_manager.sensors_ready() and self.net is not None:
-
             if self.current_gripper_state == GripState.GRABBING and self.current_gripper_state == GripState.RELEASING: # this cannot be right surely, need to fix
                 self.recent_outputs = deque(maxlen=self.output_window_length)
                 self.model_output = NaN
@@ -140,12 +139,13 @@ class HandoverNode():
                     stacked_image_t = torch.cat([img_rgb_1_t, img_rgb_2_t], 0).unsqueeze(0) # concatenates into single tensor with number of channels = sum of channels of each tensor
                     output_t = self.net(stacked_image_t, forces_t)
                 else:
-                    output_t = self.net(img_rgb_1_t, forces_t)
+                    output_t = self.net(img_rgb_1_t.unsqueeze(0), forces_t)
 
 
                 next_output = output_t.cpu().detach().numpy()[0][0]
+                rospy.loginfo(next_output)
                 self.recent_outputs.append(next_output)
-                self.model_output = mean(self.recent_outputs)
+                self.model_output = next_output
 
     def gripper_state_callback(self, gripper_input_msg):
         self.obj_det_state = obj_msg_to_enum[gripper_input_msg.gOBJ]
