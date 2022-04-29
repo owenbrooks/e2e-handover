@@ -104,7 +104,7 @@ class HandoverNode():
         self.model_output = NaN
 
         # create background remover
-        if self.sensor_manager.use_segmentation:
+        if self.sensor_manager.remove_background:
             self.segmentor = Segmentor()
 
             self.segmentation_pub = rospy.Publisher('removed_bg', Image, queue_size=1)
@@ -125,7 +125,7 @@ class HandoverNode():
                 img_rgb_1 = self.sensor_manager.img_rgb_1[:, :, ::-1]
 
                 # remove background if enabled
-                if self.sensor_manager.use_segmentation:
+                if self.sensor_manager.remove_background:
                     without_background = self.segmentor.inference(img_rgb_1)
                     img_rgb_1 = without_background
                     # publish for development purposes

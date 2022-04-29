@@ -20,9 +20,10 @@ inference:
     use_force: True
     use_tactile: False
     use_lstm: False
-    use_segmentation: True
+    use_segmentation: False
     output_velocity: False
     retract_after: False
+    remove_background: True
   receiving:
     model_file: 'models/week_8_sanity_checks/model_2022-04-11-03_14_37_rgb1_force_fine-salad-208_combined_receive_rembg_best.pt' # relative to package.xml
     use_rgb_1: True
@@ -32,8 +33,9 @@ inference:
     use_force: True
     use_tactile: False
     use_lstm: False
-    use_segmentation: True
+    use_segmentation: False
     output_velocity: False
     retract_after: True
+    remove_background: True
   strict_movement: False
   output_window_length: 5
