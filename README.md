@@ -151,9 +151,14 @@ Running position node in gazebo
 - For DualShock PS4 controller, press and hold both the Share and PS buttons.
 - Open Bluetooth settings and click on 'Wireless controller' to pair.
 
-
-roslaunch e2e_handover node_only_inference.launch
-roslaunch e2e_handover inference.launch
-
 ## Getting detectron working
 `python -m pip install 'git+https://github.com/facebookresearch/detectron2.git'`
+````
+
+## To get the robot in position, run these two launch files
+
+`roslaunch e2e_handover inference_sensors_setup.launch`
+
+Press play on the UR5 tablet
+
+`roslaunch e2e_handover inference_node_only.launch`
